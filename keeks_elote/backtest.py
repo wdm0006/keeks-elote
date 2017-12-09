@@ -31,8 +31,6 @@ class Backtest:
 
         for week_no, games in data.items():
             print('\nrunning with week %s' % (week_no,))
-            matchups = [(x.get('winner'), x.get('loser')) for x in games]
-            self._arena.tournament(matchups)
 
             # after week a while we start betting
             if week_no > period_to_start_betting:
@@ -59,6 +57,9 @@ class Backtest:
 
                 strategy.evaluate_and_issue(opps)
                 print('bankroll: %s' % (strategy.total_funds,))
+
+            matchups = [(x.get('winner'), x.get('loser')) for x in games]
+            self._arena.tournament(matchups)
 
         return strategy
 
