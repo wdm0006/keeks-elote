@@ -1,5 +1,5 @@
 from elote import LambdaArena, EloCompetitor, ECFCompetitor, GlickoCompetitor, DWZCompetitor
-from keeks import KellyCriterion, BankRoll, Opportunity, AllOnBest
+from keeks import KellyCriterion, BankRoll, AllOnBest, Momentum, AllOnBestExpectedValue, AllOnMostMomentum, Blended
 from keeks_elote import Backtest
 import datetime
 import json
@@ -25,10 +25,24 @@ for week_no in range(1, 20):
 
 # set up the objects
 arena = LambdaArena(func, base_competitor=GlickoCompetitor)
-bank = BankRoll(10000, percent_bettable=0.05, max_draw_down=1.0, verbose=1)
-# strategy = KellyCriterion(bankroll=bank, scale_bets=True, verbose=1)
-strategy = AllOnBest(bankroll=bank, verbose=1)
+bank = BankRoll(10000, percent_bettable=0.5, max_draw_down=10e6, verbose=1)
+
+# strategy = KellyCriterion(bankroll=bank, scale_bets=False, verbose=1)
+# strategy = Momentum(bankroll=bank, verbose=1)
+# strategy = AllOnBest(bankroll=bank, verbose=1)
+# strategy = AllOnBestExpectedValue(bankroll=bank, verbose=1)
+# strategy = AllOnMostMomentum(bankroll=bank, verbose=1)
+
+strategy = Blended(
+    bankroll=bank,
+    strategies=[
+        AllOnBest(bankroll=bank, verbose=1),
+        AllOnBestExpectedValue(bankroll=bank, verbose=1),
+        AllOnMostMomentum(bankroll=bank, verbose=1)
+    ],
+    verbose=1
+)
 
 backtest = Backtest(arena)
-backtest.run_explicit(chunks, strategy)
+backtest.run_explicit(chunks, strategy, period_to_start_betting=4)
 # backtest.run_and_project(chunks)
