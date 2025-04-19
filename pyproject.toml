@@ -1,0 +1,32 @@
+[project]
+name = "keeks-elote"
+version = "0.1.0"
+description = "A project integrating elote and keeks for rating systems and bankroll management."
+authors = [
+    { name = "Will McGinnis" },
+]
+dependencies = [
+    "keeks",
+    "elote[datasets]",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.2",
+    "pytest-cov",
+    "pytest-mock",
+    "ruff>=0.0.1",
+    # Add other dev dependencies here
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 120
+select = ["E", "F", "W", "C", "I"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+# Using default ruff formatter settings
