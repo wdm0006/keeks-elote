@@ -46,6 +46,7 @@ class Backtest:
     def _evaluate_bets_for_next_period(
         self,
         strategy: BaseStrategy,
+        bankroll: BankRoll,
         next_period_games: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """Evaluates potential bets for a given list of games."""
@@ -70,7 +71,9 @@ class Backtest:
                 if winner_odds_american is not None:
                     try:
                         decimal_odds_winner = american_to_decimal(winner_odds_american)
-                        bet_fraction_winner = strategy.evaluate(probability=prob_winner_wins)
+                        bet_fraction_winner = strategy.evaluate(
+                            probability=prob_winner_wins, current_bankroll=bankroll.total_funds
+                        )
                         logger.debug(
                             f"Strategy suggests betting fraction {bet_fraction_winner:.4f} on {winner_label} (P={prob_winner_wins:.4f}, Odds={decimal_odds_winner:.2f})"
                         )
@@ -92,7 +95,9 @@ class Backtest:
                 if loser_odds_american is not None:
                     try:
                         decimal_odds_loser = american_to_decimal(loser_odds_american)
-                        bet_fraction_loser = strategy.evaluate(probability=prob_loser_wins)
+                        bet_fraction_loser = strategy.evaluate(
+                            probability=prob_loser_wins, current_bankroll=bankroll.total_funds
+                        )
                         logger.debug(
                             f"Strategy suggests betting fraction {bet_fraction_loser:.4f} on {loser_label} (P={prob_loser_wins:.4f}, Odds={decimal_odds_loser:.2f})"
                         )
@@ -130,11 +135,13 @@ class Backtest:
 
                 if bet_amount > 0 and bet_amount <= available_to_bet:
                     logger.debug(f"Betting {bet_amount:.2f} on {bet['label']} to win (Fraction: {bet['fraction']:.4f})")
+                    bankroll.bet(bet_amount)
                     if bet["actual_outcome"]:
-                        bankroll.win_bet(bet_amount, bet["payoff"])
+                        # Win: return bet amount plus winnings
+                        bankroll.add_funds(bet_amount + bet_amount * bet["payoff"])
                         logger.debug(f"Bet WON. Bankroll: {bankroll.total_funds:.2f}")
                     else:
-                        bankroll.lose_bet(bet_amount)
+                        # Loss: bet amount already deducted by bet()
                         logger.debug(f"Bet LOST. Bankroll: {bankroll.total_funds:.2f}")
                 else:
                     logger.debug(
@@ -188,7 +195,7 @@ class Backtest:
 
             # --- Evaluate potential bets for the *next* period (week_no + 1) ---
             next_period_games = data.get(week_no + 1, [])
-            bets_calculated_this_period = self._evaluate_bets_for_next_period(strategy, next_period_games)
+            bets_calculated_this_period = self._evaluate_bets_for_next_period(strategy, bankroll, next_period_games)
 
             # --- Execute bets for the *current* period (calculated in the previous iteration) ---
             is_betting_period = week_no > period_to_start_betting

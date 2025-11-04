@@ -30,29 +30,31 @@ def mock_arena(mocker):
 
 @pytest.fixture
 def mock_bankroll(mocker):
-    """Fixture for a mocked keeks BankRoll."""
+    """Fixture for a mocked keeks BankRoll (keeks 0.3.0+ API)."""
     bankroll = mocker.Mock(spec=BankRoll)
     bankroll.total_funds = 1000.0
     bankroll.percent_bettable = 1.0  # Assume 100% bettable for mock simplicity
-    bankroll.win_bet = mocker.Mock(
-        side_effect=lambda amount, payoff: setattr(bankroll, "total_funds", bankroll.total_funds + amount * payoff)
-    )
-    bankroll.lose_bet = mocker.Mock(
+
+    # Updated for keeks 0.3.0+: bet() and add_funds() instead of win_bet()/lose_bet()
+    bankroll.bet = mocker.Mock(
         side_effect=lambda amount: setattr(bankroll, "total_funds", bankroll.total_funds - amount)
+    )
+    bankroll.add_funds = mocker.Mock(
+        side_effect=lambda amount: setattr(bankroll, "total_funds", bankroll.total_funds + amount)
     )
     return bankroll
 
 
 @pytest.fixture
 def mock_strategy(mocker):
-    """Fixture for a mocked keeks Strategy.
-    Mocks the evaluate method. Does NOT hold bankroll.
+    """Fixture for a mocked keeks Strategy (keeks 0.3.0+ API).
+    Mocks the evaluate method which now takes current_bankroll parameter.
     """
     strategy = mocker.Mock(spec=BaseStrategy)
-    # Assume evaluate returns a fixed fraction for simplicity in testing flow
+    # Updated for keeks 0.3.0+: evaluate now takes current_bankroll parameter
     strategy.evaluate = mocker.Mock(return_value=0.1)  # Returns 10% bet fraction
-    # Remove bankroll association
-    # strategy.bankroll = mock_bankroll
+    # Note: In keeks 0.3.0+, strategies don't have a bankroll attribute
+    # The bankroll is passed separately to run_explicit()
     return strategy
 
 
@@ -145,27 +147,24 @@ class TestBacktest:
         # P2 evaluates P3 games (A vs C, C vs A)
         # P3 evaluates P4 games (none)
         assert mock_strategy.evaluate.call_count == 4
-        # Check specific calls if needed (arguments checked in previous version)
-        # Signature updated: evaluate(probability)
-        mock_strategy.evaluate.assert_any_call(probability=0.5)  # P1: Eval C vs B (or B vs C)
-        mock_strategy.evaluate.assert_any_call(probability=0.6)  # P2: Eval A vs C
-        mock_strategy.evaluate.assert_any_call(probability=0.4)  # P2: Eval C vs A
+        # Check specific calls - keeks 0.3.0+ signature: evaluate(probability, current_bankroll)
+        mock_strategy.evaluate.assert_any_call(probability=0.5, current_bankroll=mocker.ANY)  # P1: Eval C vs B
+        mock_strategy.evaluate.assert_any_call(probability=0.6, current_bankroll=mocker.ANY)  # P2: Eval A vs C
+        mock_strategy.evaluate.assert_any_call(probability=0.4, current_bankroll=mocker.ANY)  # P2: Eval C vs A
 
         # 2. Check Bankroll Updates (Only for non-dry-run periods: P2, P3)
-        # Bet amount calculation is now internal to run_explicit
-        # We just check win/loss calls
-        assert mock_bankroll.win_bet.call_count == 2  # 1 win in P2, 1 win in P3
-        assert mock_bankroll.lose_bet.call_count == 2  # 1 loss in P2, 1 loss in P3
+        # keeks 0.3.0+ API: bet() is called for all bets, add_funds() for wins
+        # Each period has 2 bets (winner and loser), so 4 total bets in P2 and P3
+        assert mock_bankroll.bet.call_count == 4  # 2 bets in P2, 2 bets in P3
+        assert mock_bankroll.add_funds.call_count == 2  # 1 win in P2, 1 win in P3
 
-        # Check specific calls made during Period 2 execution (bankroll = 1000):
-        # Bet amount = 1000 * 1.0 * 0.1 = 100 (approx)
-        mock_bankroll.win_bet.assert_any_call(mocker.ANY, 1.5)  # Bet on C won
-        mock_bankroll.lose_bet.assert_any_call(mocker.ANY)  # Bet on B lost
+        # Check bet() calls (should be called for all bets)
+        mock_bankroll.bet.assert_any_call(mocker.ANY)
 
-        # Check specific calls made during Period 3 execution (bankroll approx 1050):
-        # Bet amount = 1050 * 1.0 * 0.1 = 105 (approx)
-        mock_bankroll.win_bet.assert_any_call(mocker.ANY, 0.5)  # Bet on A won
-        mock_bankroll.lose_bet.assert_any_call(mocker.ANY)  # Bet on C lost
+        # Check add_funds() calls for wins only
+        # Win amount = bet_amount + bet_amount * payoff
+        mock_bankroll.add_funds.assert_any_call(mocker.ANY)  # Win in P2
+        mock_bankroll.add_funds.assert_any_call(mocker.ANY)  # Win in P3
 
         # 3. Check Arena Updates (Should happen for P1, P2, P3)
         assert mock_arena.tournament.call_count == 3
@@ -189,10 +188,9 @@ class TestBacktest:
         # Should not call strategy evaluate if odds are missing
         mock_calculate_probabilities.assert_not_called()
         mock_strategy.evaluate.assert_not_called()
-        # Bankroll win/loss methods should not be called
-        # get_bet_amount is no longer called directly
-        mock_bankroll.win_bet.assert_not_called()
-        mock_bankroll.lose_bet.assert_not_called()
+        # Bankroll methods should not be called (keeks 0.3.0+ API)
+        mock_bankroll.bet.assert_not_called()
+        mock_bankroll.add_funds.assert_not_called()
 
     # test_run_and_project doesn't interact with keeks strategies/bankroll, so it
     # likely doesn't need changes, but we should ensure mocks are correct.
