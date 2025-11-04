@@ -6,8 +6,8 @@ authors = [
     { name = "Will McGinnis" },
 ]
 dependencies = [
-    "keeks",
-    "elote[datasets]",
+    "keeks>=0.3.0",
+    "elote>=1.1.0",
 ]
 
 [project.optional-dependencies]

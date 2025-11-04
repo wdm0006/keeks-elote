@@ -54,9 +54,8 @@ arena = LambdaArena(func, base_competitor=GlickoCompetitor)
 bank = BankRoll(initial_funds=10000, percent_bettable=0.5, max_draw_down=10e6)
 
 logger.info("Setting up Strategy (using KellyCriterion)...")
-# NOTE: KellyCriterion requires payoff/loss/transaction_cost.
-# Providing dummy values just to allow initialization for the test run.
-# These should be calculated based on actual odds for meaningful results.
+# NOTE: KellyCriterion in keeks 0.3.0+ takes payoff, loss, and transaction_cost
+# These are nominal values as the actual odds are calculated per-bet in the backtest
 strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
 
 # Comment out the complex/unavailable strategy setup
