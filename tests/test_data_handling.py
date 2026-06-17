@@ -1,28 +1,54 @@
+import pytest
+
 from keeks_elote.data_handling import prepare_data
 
 
 def test_prepare_data_passthrough():
-    """Tests that prepare_data currently returns the input data unchanged."""
+    """Well-formed data is returned unchanged (same object)."""
     test_data = {1: [{"winner": "A", "loser": "B"}], 2: [{"winner": "C", "loser": "D"}]}
     prepared = prepare_data(test_data)
     assert prepared == test_data
-    assert id(prepared) == id(test_data)  # Ensure it's the same object for now
+    assert id(prepared) == id(test_data)  # No copy when nothing is dropped.
 
 
 def test_prepare_data_empty():
-    """Tests prepare_data with empty input."""
+    """An empty dict passes through unchanged."""
     test_data = {}
     prepared = prepare_data(test_data)
     assert prepared == test_data
+    assert id(prepared) == id(test_data)
 
 
-def test_prepare_data_different_types(mocker):
-    """Tests prepare_data logs correctly for different input types (though it only expects dict)."""
+@pytest.mark.parametrize("bad_input", [[], "not a dict", None, 42])
+def test_prepare_data_non_dict_raises(bad_input):
+    """Non-dict input raises a clear TypeError."""
+    with pytest.raises(TypeError):
+        prepare_data(bad_input)
+
+
+def test_prepare_data_drops_games_missing_labels(mocker):
+    """Games missing winner/loser are dropped with a warning; valid ones remain."""
     mock_logger = mocker.patch("keeks_elote.data_handling.logger")
+    test_data = {
+        1: [
+            {"winner": "A", "loser": "B"},
+            {"winner": "C"},  # missing loser
+            {"loser": "E"},  # missing winner
+            {"winner": None, "loser": "F"},  # explicit None
+        ],
+        2: [{"winner": "G", "loser": "H"}],
+    }
+    prepared = prepare_data(test_data)
+    assert prepared == {
+        1: [{"winner": "A", "loser": "B"}],
+        2: [{"winner": "G", "loser": "H"}],
+    }
+    assert id(prepared) != id(test_data)  # A cleaned copy was built.
+    assert mock_logger.warning.call_count == 3
 
-    prepare_data([])
-    mock_logger.debug.assert_any_call("Input data type: <class 'list'>")
 
-    prepare_data({1: []})
-    mock_logger.debug.assert_any_call("Input data type: <class 'dict'>")
-    mock_logger.debug.assert_any_call("Data has 1 periods.")
+def test_prepare_data_drops_non_dict_games():
+    """Game entries that are not dicts are dropped."""
+    test_data = {1: [{"winner": "A", "loser": "B"}, "garbage", None]}
+    prepared = prepare_data(test_data)
+    assert prepared == {1: [{"winner": "A", "loser": "B"}]}
