@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -20,4 +20,4 @@ def prepare_data(data: Dict[int, List[Dict[str, Any]]]) -> Dict[int, List[Dict[s
     if isinstance(data, dict):
         logger.debug(f"Data has {len(data)} periods.")
     logger.info("Data preparation complete.")
-    return data 
+    return data
