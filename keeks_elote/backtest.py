@@ -185,16 +185,19 @@ class Backtest:
 
         data = prepare_data(data)
         logger.debug(f"Prepared data keys (periods): {list(data.keys())}")
+        period_keys = sorted(data)
 
         bets_calculated_prev_period = []  # Store bets for execution in the *next* period
 
-        for week_no, games in data.items():
+        for period_index, week_no in enumerate(period_keys):
+            games = data[week_no]
             logger.info(f"Processing period {week_no} with {len(games)} games.")
 
             current_period_bets_to_execute = bets_calculated_prev_period
 
-            # --- Evaluate potential bets for the *next* period (week_no + 1) ---
-            next_period_games = data.get(week_no + 1, [])
+            # --- Evaluate potential bets for the *next* period ---
+            next_period_key = period_keys[period_index + 1] if period_index + 1 < len(period_keys) else None
+            next_period_games = data[next_period_key] if next_period_key is not None else []
             bets_calculated_this_period = self._evaluate_bets_for_next_period(strategy, bankroll, next_period_games)
 
             # --- Execute bets for the *current* period (calculated in the previous iteration) ---
@@ -240,8 +243,10 @@ class Backtest:
         logger.info("Starting projection run.")
         data = prepare_data(data)
         logger.debug(f"Prepared data keys (periods): {list(data.keys())}")
+        period_keys = sorted(data)
 
-        for week_no, games in data.items():
+        for period_index, week_no in enumerate(period_keys):
+            games = data[week_no]
             logger.info(f"Processing period {week_no} with {len(games)} games.")
             # print('\nrunning with week %s' % (week_no,)) # Replaced with logging
 
@@ -254,8 +259,10 @@ class Backtest:
             else:
                 logger.info(f"No matchups to update ratings for period {week_no}.")
 
-            next_period_games = data.get(week_no + 1, [])
-            logger.info(f"Generating projections for period {week_no + 1} ({len(next_period_games)} games).")
+            next_period_key = period_keys[period_index + 1] if period_index + 1 < len(period_keys) else None
+            next_period_games = data[next_period_key] if next_period_key is not None else []
+            projected_period = next_period_key if next_period_key is not None else week_no + 1
+            logger.info(f"Generating projections for period {projected_period} ({len(next_period_games)} games).")
             for game in next_period_games:
                 logger.debug(f"Projecting game: {game.get('winner')} vs {game.get('loser')}")
                 prob_win = calculate_probabilities(self._arena, game)
