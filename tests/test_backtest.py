@@ -192,6 +192,34 @@ class TestBacktest:
         mock_bankroll.bet.assert_not_called()
         mock_bankroll.add_funds.assert_not_called()
 
+    def test_run_explicit_prices_next_period_after_rating_update(
+        self, mock_strategy, mock_bankroll, mock_prepare_data
+    ):
+        class RatingStateArena:
+            def __init__(self):
+                self.probability = 0.25
+
+            def tournament(self, matchups):
+                self.probability = 0.75
+
+            def expected_score(self, winner, loser):
+                return self.probability
+
+        data = {
+            1: [{"winner": "A", "loser": "B"}],
+            2: [{"winner": "A", "loser": "C", "winner_odds": 100, "loser_odds": 100}],
+        }
+
+        Backtest(RatingStateArena()).run_explicit(
+            data,
+            mock_strategy,
+            mock_bankroll,
+            period_to_start_betting=2,
+        )
+
+        probabilities = [call.kwargs["probability"] for call in mock_strategy.evaluate.call_args_list]
+        assert probabilities == [0.75, 0.25]
+
     def test_run_explicit_orders_sparse_periods(
         self, mock_arena, mock_strategy, mock_bankroll, mock_prepare_data, mock_calculate_probabilities, mocker
     ):

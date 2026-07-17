@@ -195,18 +195,9 @@ class Backtest:
 
             current_period_bets_to_execute = bets_calculated_prev_period
 
-            # --- Evaluate potential bets for the *next* period ---
-            next_period_key = period_keys[period_index + 1] if period_index + 1 < len(period_keys) else None
-            next_period_games = data[next_period_key] if next_period_key is not None else []
-            bets_calculated_this_period = self._evaluate_bets_for_next_period(strategy, bankroll, next_period_games)
-
             # --- Execute bets for the *current* period (calculated in the previous iteration) ---
             is_betting_period = week_no > period_to_start_betting
-            if not is_betting_period:
-                logger.info(
-                    f"Period {week_no}: Dry run week. Calculated {len(bets_calculated_this_period)} potential bets for next period."
-                )
-            else:
+            if is_betting_period:
                 self._execute_bets_for_current_period(bankroll, current_period_bets_to_execute, week_no)
 
             # --- Update Arena Ratings with *current* period results ---
@@ -217,6 +208,16 @@ class Backtest:
                 logger.debug(f"Arena update complete for period {week_no}.")
             else:
                 logger.info(f"No matchups to update ratings for period {week_no}.")
+
+            # --- Evaluate potential bets for the *next* period ---
+            next_period_key = period_keys[period_index + 1] if period_index + 1 < len(period_keys) else None
+            next_period_games = data[next_period_key] if next_period_key is not None else []
+            bets_calculated_this_period = self._evaluate_bets_for_next_period(strategy, bankroll, next_period_games)
+
+            if not is_betting_period:
+                logger.info(
+                    f"Period {week_no}: Dry run week. Calculated {len(bets_calculated_this_period)} potential bets for next period."
+                )
 
             # Store calculated bets for the next iteration
             bets_calculated_prev_period = bets_calculated_this_period
