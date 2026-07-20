@@ -185,25 +185,19 @@ class Backtest:
 
         data = prepare_data(data)
         logger.debug(f"Prepared data keys (periods): {list(data.keys())}")
+        period_keys = sorted(data)
 
         bets_calculated_prev_period = []  # Store bets for execution in the *next* period
 
-        for week_no, games in data.items():
+        for period_index, week_no in enumerate(period_keys):
+            games = data[week_no]
             logger.info(f"Processing period {week_no} with {len(games)} games.")
 
             current_period_bets_to_execute = bets_calculated_prev_period
 
-            # --- Evaluate potential bets for the *next* period (week_no + 1) ---
-            next_period_games = data.get(week_no + 1, [])
-            bets_calculated_this_period = self._evaluate_bets_for_next_period(strategy, bankroll, next_period_games)
-
             # --- Execute bets for the *current* period (calculated in the previous iteration) ---
             is_betting_period = week_no > period_to_start_betting
-            if not is_betting_period:
-                logger.info(
-                    f"Period {week_no}: Dry run week. Calculated {len(bets_calculated_this_period)} potential bets for next period."
-                )
-            else:
+            if is_betting_period:
                 self._execute_bets_for_current_period(bankroll, current_period_bets_to_execute, week_no)
 
             # --- Update Arena Ratings with *current* period results ---
@@ -214,6 +208,16 @@ class Backtest:
                 logger.debug(f"Arena update complete for period {week_no}.")
             else:
                 logger.info(f"No matchups to update ratings for period {week_no}.")
+
+            # --- Evaluate potential bets for the *next* period ---
+            next_period_key = period_keys[period_index + 1] if period_index + 1 < len(period_keys) else None
+            next_period_games = data[next_period_key] if next_period_key is not None else []
+            bets_calculated_this_period = self._evaluate_bets_for_next_period(strategy, bankroll, next_period_games)
+
+            if not is_betting_period:
+                logger.info(
+                    f"Period {week_no}: Dry run week. Calculated {len(bets_calculated_this_period)} potential bets for next period."
+                )
 
             # Store calculated bets for the next iteration
             bets_calculated_prev_period = bets_calculated_this_period
@@ -240,8 +244,10 @@ class Backtest:
         logger.info("Starting projection run.")
         data = prepare_data(data)
         logger.debug(f"Prepared data keys (periods): {list(data.keys())}")
+        period_keys = sorted(data)
 
-        for week_no, games in data.items():
+        for period_index, week_no in enumerate(period_keys):
+            games = data[week_no]
             logger.info(f"Processing period {week_no} with {len(games)} games.")
             # print('\nrunning with week %s' % (week_no,)) # Replaced with logging
 
@@ -254,8 +260,10 @@ class Backtest:
             else:
                 logger.info(f"No matchups to update ratings for period {week_no}.")
 
-            next_period_games = data.get(week_no + 1, [])
-            logger.info(f"Generating projections for period {week_no + 1} ({len(next_period_games)} games).")
+            next_period_key = period_keys[period_index + 1] if period_index + 1 < len(period_keys) else None
+            next_period_games = data[next_period_key] if next_period_key is not None else []
+            projected_period = next_period_key if next_period_key is not None else week_no + 1
+            logger.info(f"Generating projections for period {projected_period} ({len(next_period_games)} games).")
             for game in next_period_games:
                 winner, loser = game.get("winner"), game.get("loser")
                 if winner is None or loser is None:

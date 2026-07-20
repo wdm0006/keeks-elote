@@ -192,6 +192,55 @@ class TestBacktest:
         mock_bankroll.bet.assert_not_called()
         mock_bankroll.add_funds.assert_not_called()
 
+    def test_run_explicit_prices_next_period_after_rating_update(
+        self, mock_strategy, mock_bankroll, mock_prepare_data
+    ):
+        class RatingStateArena:
+            def __init__(self):
+                self.probability = 0.25
+
+            def tournament(self, matchups):
+                self.probability = 0.75
+
+            def expected_score(self, winner, loser):
+                return self.probability
+
+        data = {
+            1: [{"winner": "A", "loser": "B"}],
+            2: [{"winner": "A", "loser": "C", "winner_odds": 100, "loser_odds": 100}],
+        }
+
+        Backtest(RatingStateArena()).run_explicit(
+            data,
+            mock_strategy,
+            mock_bankroll,
+            period_to_start_betting=2,
+        )
+
+        probabilities = [call.kwargs["probability"] for call in mock_strategy.evaluate.call_args_list]
+        assert probabilities == [0.75, 0.25]
+
+    def test_run_explicit_orders_sparse_periods(
+        self, mock_arena, mock_strategy, mock_bankroll, mock_prepare_data, mock_calculate_probabilities, mocker
+    ):
+        bt = Backtest(mock_arena)
+        data = {
+            3: [{"winner": "C", "loser": "B", "winner_odds": 150, "loser_odds": -170}],
+            1: [{"winner": "A", "loser": "B"}],
+        }
+
+        bt.run_explicit(data, mock_strategy, mock_bankroll, period_to_start_betting=0)
+
+        assert mock_arena.tournament.call_args_list == [
+            mocker.call([("A", "B")]),
+            mocker.call([("C", "B")]),
+        ]
+        assert mock_calculate_probabilities.call_args_list == [
+            mocker.call(mock_arena, data[3][0]),
+        ]
+        assert mock_strategy.evaluate.call_count == 2
+        assert mock_bankroll.bet.call_count == 2
+
     # test_run_and_project doesn't interact with keeks strategies/bankroll, so it
     # likely doesn't need changes, but we should ensure mocks are correct.
     def test_run_and_project(
@@ -257,3 +306,22 @@ class TestBacktest:
         mock_calculate_probabilities.assert_called_once_with(mock_arena, data[2][0])
         mock_logger.warning.assert_any_call(f"Skipping game due to missing labels: {data[2][1]}")
         mock_logger.warning.assert_any_call(f"Skipping game due to missing labels: {data[2][2]}")
+
+    def test_run_and_project_orders_sparse_periods(
+        self, mock_arena, mock_prepare_data, mock_calculate_probabilities, mocker
+    ):
+        bt = Backtest(mock_arena)
+        data = {
+            3: [{"winner": "C", "loser": "B"}],
+            1: [{"winner": "A", "loser": "B"}],
+        }
+
+        bt.run_and_project(data)
+
+        assert mock_arena.tournament.call_args_list == [
+            mocker.call([("A", "B")]),
+            mocker.call([("C", "B")]),
+        ]
+        assert mock_calculate_probabilities.call_args_list == [
+            mocker.call(mock_arena, data[3][0]),
+        ]
