@@ -265,9 +265,12 @@ class Backtest:
             projected_period = next_period_key if next_period_key is not None else week_no + 1
             logger.info(f"Generating projections for period {projected_period} ({len(next_period_games)} games).")
             for game in next_period_games:
-                logger.debug(f"Projecting game: {game.get('winner')} vs {game.get('loser')}")
-                prob_win = calculate_probabilities(self._arena, game)
                 winner, loser = game.get("winner"), game.get("loser")
+                if winner is None or loser is None:
+                    logger.warning(f"Skipping game due to missing labels: {game}")
+                    continue
+                logger.debug(f"Projecting game: {winner} vs {loser}")
+                prob_win = calculate_probabilities(self._arena, game)
                 if prob_win > 0.5:
                     logger.info(f"Predicted {winner} over {loser}: {prob_win:.4f}")
                     # print('Predicted %s over %s: %s' % (game.get('winner'), game.get('loser'), prob_win, )) # Replaced

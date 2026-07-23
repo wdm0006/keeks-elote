@@ -283,6 +283,30 @@ class TestBacktest:
                 break
         assert found_coin_flip_log, "Expected log for 0.5 probability prediction not found"
 
+    def test_run_and_project_skips_games_missing_labels(
+        self, mock_arena, mock_prepare_data, mock_calculate_probabilities, mocker
+    ):
+        """run_and_project must not call calculate_probabilities on games missing winner/loser."""
+        bt = Backtest(mock_arena)
+        mock_logger = mocker.patch("keeks_elote.backtest.logger")
+
+        data = {
+            1: [{"winner": "A", "loser": "B"}],
+            2: [
+                {"winner": "C", "loser": "B"},  # valid -> projected
+                {"loser": "B"},  # missing winner -> skipped
+                {"winner": "A"},  # missing loser -> skipped
+            ],
+        }
+
+        bt.run_and_project(data)
+
+        # Only the single valid period-2 game should be projected.
+        assert mock_calculate_probabilities.call_count == 1
+        mock_calculate_probabilities.assert_called_once_with(mock_arena, data[2][0])
+        mock_logger.warning.assert_any_call(f"Skipping game due to missing labels: {data[2][1]}")
+        mock_logger.warning.assert_any_call(f"Skipping game due to missing labels: {data[2][2]}")
+
     def test_run_and_project_orders_sparse_periods(
         self, mock_arena, mock_prepare_data, mock_calculate_probabilities, mocker
     ):
