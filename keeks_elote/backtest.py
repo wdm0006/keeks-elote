@@ -128,9 +128,9 @@ class Backtest:
     ) -> None:
         """Executes a list of bets against the provided bankroll."""
         logger.info(f"Period {period_number}: Executing {len(bets_to_execute)} bets calculated previously.")
+        available_to_bet = bankroll.total_funds * bankroll.percent_bettable
         for bet in bets_to_execute:
             try:
-                available_to_bet = bankroll.total_funds * bankroll.percent_bettable
                 bet_amount = available_to_bet * bet["fraction"]
 
                 if bet_amount > 0 and bet_amount <= available_to_bet:
