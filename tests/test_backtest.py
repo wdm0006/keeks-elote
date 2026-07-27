@@ -192,9 +192,7 @@ class TestBacktest:
         mock_bankroll.bet.assert_not_called()
         mock_bankroll.add_funds.assert_not_called()
 
-    def test_run_explicit_prices_next_period_after_rating_update(
-        self, mock_strategy, mock_bankroll, mock_prepare_data
-    ):
+    def test_run_explicit_prices_next_period_after_rating_update(self, mock_strategy, mock_bankroll, mock_prepare_data):
         class RatingStateArena:
             def __init__(self):
                 self.probability = 0.25
