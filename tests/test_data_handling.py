@@ -26,6 +26,13 @@ def test_prepare_data_non_dict_raises(bad_input):
         prepare_data(bad_input)
 
 
+@pytest.mark.parametrize(("games", "type_name"), [(None, "NoneType"), (42, "int"), ("not-games", "str")])
+def test_prepare_data_non_list_period_raises(games, type_name):
+    """Period values that are not lists raise a clear TypeError."""
+    with pytest.raises(TypeError, match=rf"period 1 .* list of games, got {type_name}"):
+        prepare_data({1: games})
+
+
 def test_prepare_data_drops_games_missing_labels(mocker):
     """Games missing winner/loser are dropped with a warning; valid ones remain."""
     mock_logger = mocker.patch("keeks_elote.data_handling.logger")

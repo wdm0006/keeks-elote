@@ -11,6 +11,8 @@ def prepare_data(data: Dict[int, List[Dict[str, Any]]]) -> Dict[int, List[Dict[s
 
     * ``data`` must be a ``dict`` keyed by period; anything else raises
       :class:`TypeError`.
+    * Each period must contain a ``list`` of games; anything else raises
+      :class:`TypeError`.
     * Each game must be a ``dict`` containing both ``winner`` and ``loser``
       keys. Games that are not dicts or are missing either label are dropped
       with a warning (consistent with how :class:`~keeks_elote.backtest.Backtest`
@@ -24,7 +26,7 @@ def prepare_data(data: Dict[int, List[Dict[str, Any]]]) -> Dict[int, List[Dict[s
     :type data: Dict[int, List[Dict[str, Any]]]
     :return: The validated data with any malformed games removed.
     :rtype: Dict[int, List[Dict[str, Any]]]
-    :raises TypeError: If ``data`` is not a dict.
+    :raises TypeError: If ``data`` is not a dict or a period does not contain a list.
     """
     logger.info("Preparing data...")
     logger.debug(f"Input data type: {type(data)}")
@@ -35,6 +37,8 @@ def prepare_data(data: Dict[int, List[Dict[str, Any]]]) -> Dict[int, List[Dict[s
     cleaned: Dict[int, List[Dict[str, Any]]] = {}
     dropped = 0
     for period, games in data.items():
+        if not isinstance(games, list):
+            raise TypeError(f"prepare_data expected period {period} to contain a list of games, got {type(games).__name__}.")
         valid_games = []
         for game in games:
             if not isinstance(game, dict) or game.get("winner") is None or game.get("loser") is None:
