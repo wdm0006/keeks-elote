@@ -5,6 +5,7 @@ description = "A project integrating elote and keeks for rating systems and bank
 authors = [
     { name = "Will McGinnis" },
 ]
+requires-python = ">=3.10"
 dependencies = [
     "keeks>=0.3.0",
     "elote>=1.1.0",
