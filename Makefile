@@ -31,19 +31,21 @@ test: install # Make test depend on install to ensure dev deps are present
 
 # Lint code
 lint: install # Make lint depend on install
-	$(UV) run --python $(VENV_DIR)/bin/python ruff check --fix .
+	$(UV) run --python $(VENV_DIR)/bin/python ruff check .
+	$(UV) run --python $(VENV_DIR)/bin/python ruff format --check .
 	@echo "Linting check completed."
 
 # Format code
 format: install # Make format depend on install
+	$(UV) run --python $(VENV_DIR)/bin/python ruff check --fix .
 	$(UV) run --python $(VENV_DIR)/bin/python ruff format .
 	@echo "Code formatting completed."
 
-# Run linting and formatting
-check: lint format
+# Run all non-mutating checks
+check: lint
 
 # Clean up virtual environment
 clean:
 	@echo "Cleaning up..."
 	@rm -rf $(VENV_DIR)
-	@echo "Removed $(VENV_DIR)" 
+	@echo "Removed $(VENV_DIR)"

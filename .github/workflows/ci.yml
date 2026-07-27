@@ -41,6 +41,9 @@ jobs:
       - name: Run tests
         run: uv run pytest --cov=keeks_elote tests/
 
-      # Mirrors `make lint` (without --fix, so CI fails on lint errors)
+      # Mirrors `make lint`
       - name: Lint
         run: uv run ruff check .
+
+      - name: Check formatting
+        run: uv run ruff format --check .

@@ -25,6 +25,8 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "C", "I"]
 ignore = ["E501"]
 
