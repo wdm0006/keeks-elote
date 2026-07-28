@@ -8,7 +8,7 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "keeks>=0.3.0",
-    "elote>=1.1.0",
+    "elote>=1.2.0",
 ]
 
 [project.optional-dependencies]
