@@ -1,5 +1,6 @@
 import pytest
 from keeks.bankroll import BankRoll
+from keeks.binary_strategies import KellyCriterion
 
 from keeks_elote import Backtest
 from keeks_elote.backtest import american_to_decimal
@@ -11,6 +12,14 @@ class StubArena:
 
     def tournament(self, matchups):
         pass
+
+
+class ProbabilityArena(StubArena):
+    def __init__(self, probability):
+        self.probability = probability
+
+    def expected_score(self, winner, loser):
+        return self.probability
 
 
 class FixedFractionStrategy:
@@ -83,6 +92,47 @@ def test_same_period_bets_use_opening_bankroll():
 
     assert bankroll.bet_amounts == [100.0, 100.0]
     assert bankroll.total_funds == 1050.0
+
+
+def run_kelly_bet(winner_odds, *, price_bets_at_true_odds=True):
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": winner_odds, "loser_odds": -500}],
+    }
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+
+    result = Backtest(ProbabilityArena(0.55)).run_explicit(
+        data,
+        strategy,
+        bankroll,
+        period_to_start_betting=1,
+        price_bets_at_true_odds=price_bets_at_true_odds,
+    )
+    return result, strategy
+
+
+def test_heavy_favorite_price_prevents_negative_expected_value_bet():
+    bankroll, strategy = run_kelly_bet(-500)
+
+    assert bankroll.total_funds == 1000.0
+    assert strategy.payoff == 1.0
+    assert strategy.loss == 1.0
+
+
+def test_plus_money_price_sizes_bet_larger_than_even_money():
+    plus_money_bankroll, _ = run_kelly_bet(150)
+    even_money_bankroll, _ = run_kelly_bet(100)
+
+    assert plus_money_bankroll.total_funds == 1375.0
+    assert even_money_bankroll.total_funds == 1100.0
+
+
+def test_true_odds_pricing_can_be_disabled():
+    bankroll, strategy = run_kelly_bet(-500, price_bets_at_true_odds=False)
+
+    assert bankroll.total_funds == 1020.0
+    assert strategy.payoff == 1.0
 
 
 @pytest.mark.parametrize(("american_odds", "decimal_odds"), [(150, 2.5), (-200, 1.5)])

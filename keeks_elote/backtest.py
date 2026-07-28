@@ -1,3 +1,4 @@
+import copy
 import logging
 from typing import Any, Dict, List
 
@@ -19,6 +20,16 @@ def american_to_decimal(american_odds: float) -> float:
         return (100.0 / abs(american_odds)) + 1.0
 
 
+def _strategy_for_bet(strategy: BaseStrategy, payoff: float, price_bets_at_true_odds: bool) -> BaseStrategy:
+    if not price_bets_at_true_odds:
+        return strategy
+
+    bet_strategy = copy.copy(strategy)
+    bet_strategy.payoff = payoff
+    bet_strategy.loss = 1.0
+    return bet_strategy
+
+
 class Backtest:
     """Runs backtests for betting strategies using an elote Arena for ratings.
 
@@ -27,8 +38,8 @@ class Backtest:
     for future periods, and evaluating a given betting strategy against those
     opportunities.
 
-    Requires the strategy object to have an associated `bankroll` attribute of type
-    `keeks.bankroll.BankRoll`.
+    The strategy and bankroll are supplied separately when running a betting
+    simulation.
 
     :param arena: An initialized elote Arena instance (e.g., GlickoArena).
     :type arena: BaseArena
@@ -48,6 +59,7 @@ class Backtest:
         strategy: BaseStrategy,
         bankroll: BankRoll,
         next_period_games: List[Dict[str, Any]],
+        price_bets_at_true_odds: bool,
     ) -> List[Dict[str, Any]]:
         """Evaluates potential bets for a given list of games."""
         bets_calculated = []
@@ -71,7 +83,12 @@ class Backtest:
                 if winner_odds_american is not None:
                     try:
                         decimal_odds_winner = american_to_decimal(winner_odds_american)
-                        bet_fraction_winner = strategy.evaluate(
+                        bet_strategy = _strategy_for_bet(
+                            strategy,
+                            decimal_odds_winner - 1.0,
+                            price_bets_at_true_odds,
+                        )
+                        bet_fraction_winner = bet_strategy.evaluate(
                             probability=prob_winner_wins, current_bankroll=bankroll.total_funds
                         )
                         logger.debug(
@@ -95,7 +112,12 @@ class Backtest:
                 if loser_odds_american is not None:
                     try:
                         decimal_odds_loser = american_to_decimal(loser_odds_american)
-                        bet_fraction_loser = strategy.evaluate(
+                        bet_strategy = _strategy_for_bet(
+                            strategy,
+                            decimal_odds_loser - 1.0,
+                            price_bets_at_true_odds,
+                        )
+                        bet_fraction_loser = bet_strategy.evaluate(
                             probability=prob_loser_wins, current_bankroll=bankroll.total_funds
                         )
                         logger.debug(
@@ -157,12 +179,13 @@ class Backtest:
         strategy: BaseStrategy,
         bankroll: BankRoll,
         period_to_start_betting: int = 3,
+        price_bets_at_true_odds: bool = True,
     ) -> BankRoll:
         """Runs a backtest simulation, processing data period by period.
 
-        Calls the strategy's `evaluate` method (assuming it takes `probability`,
-        `payoff`, `loss` and returns a bet fraction) and handles bankroll updates
-        using the explicitly passed bankroll object.
+        Calls the strategy's `evaluate` method with `probability` and
+        `current_bankroll`, then handles bankroll updates using the explicitly
+        passed bankroll object.
 
         Data format requires `winner_odds` and `loser_odds` to be American odds.
 
@@ -176,6 +199,11 @@ class Backtest:
                                           real bets (periods before this are dry runs).
                                           Defaults to 3.
         :type period_to_start_betting: int
+        :param price_bets_at_true_odds: Size each bet using its game-specific payoff.
+                                       If false, use the strategy's configured payoff
+                                       for sizing. Settlement always uses the game's
+                                       actual odds. Defaults to true.
+        :type price_bets_at_true_odds: bool
         :return: The BankRoll object, updated with results from the backtest.
         :rtype: BankRoll
         """
@@ -212,7 +240,12 @@ class Backtest:
             # --- Evaluate potential bets for the *next* period ---
             next_period_key = period_keys[period_index + 1] if period_index + 1 < len(period_keys) else None
             next_period_games = data[next_period_key] if next_period_key is not None else []
-            bets_calculated_this_period = self._evaluate_bets_for_next_period(strategy, bankroll, next_period_games)
+            bets_calculated_this_period = self._evaluate_bets_for_next_period(
+                strategy,
+                bankroll,
+                next_period_games,
+                price_bets_at_true_odds,
+            )
 
             if not is_betting_period:
                 logger.info(
