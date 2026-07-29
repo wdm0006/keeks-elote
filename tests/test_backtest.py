@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies.base import BaseStrategy
@@ -112,6 +114,15 @@ class TestBacktest:
         """Tests Backtest initialization."""
         bt = Backtest(mock_arena)
         assert bt._arena == mock_arena
+
+    def test_debug_logs_follow_root_configuration(self, caplog, mock_arena, mock_strategy, mock_bankroll):
+        with caplog.at_level(logging.DEBUG):
+            Backtest(mock_arena).run_explicit({1: []}, mock_strategy, mock_bankroll)
+            assert logging.getLogger("keeks_elote.backtest").isEnabledFor(logging.DEBUG)
+
+        assert any(
+            record.levelno == logging.DEBUG and record.name.startswith("keeks_elote.") for record in caplog.records
+        )
 
     def test_run_explicit_flow(
         self,
