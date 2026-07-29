@@ -38,7 +38,9 @@ def prepare_data(data: Dict[int, List[Dict[str, Any]]]) -> Dict[int, List[Dict[s
     dropped = 0
     for period, games in data.items():
         if not isinstance(games, list):
-            raise TypeError(f"prepare_data expected period {period} to contain a list of games, got {type(games).__name__}.")
+            raise TypeError(
+                f"prepare_data expected period {period} to contain a list of games, got {type(games).__name__}."
+            )
         valid_games = []
         for game in games:
             if not isinstance(game, dict) or game.get("winner") is None or game.get("loser") is None:
