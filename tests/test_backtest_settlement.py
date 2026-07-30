@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies import KellyCriterion
@@ -43,18 +45,22 @@ class RecordingBankRoll(BankRoll):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.bet_amounts = []
+        self.settled_amounts = []
 
     def bet(self, amount):
         self.bet_amounts.append(amount)
-        return super().bet(amount)
+        result = super().bet(amount)
+        self.settled_amounts.append(amount)
+        return result
 
 
-def run_single_bet(selected_probability):
+def run_single_bet(selected_probability, bankroll=None):
     data = {
         1: [],
         2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
     }
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    if bankroll is None:
+        bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
 
     return Backtest(StubArena()).run_explicit(
         data,
@@ -67,13 +73,56 @@ def run_single_bet(selected_probability):
 def test_winning_bet_returns_stake_and_payoff():
     bankroll = run_single_bet(selected_probability=0.75)
 
-    assert bankroll.total_funds == 1150.0
+    assert bankroll.total_funds == 1300.0
 
 
 def test_losing_bet_deducts_stake():
     bankroll = run_single_bet(selected_probability=0.25)
 
-    assert bankroll.total_funds == 900.0
+    assert bankroll.total_funds == 800.0
+
+
+def test_stake_uses_the_bankroll_the_strategy_was_quoted():
+    """The strategy prices its fraction against total funds, so that is the staking base."""
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+
+    run_single_bet(selected_probability=0.75, bankroll=bankroll)
+
+    assert bankroll.bet_amounts == [200.0]
+
+
+def test_overdrawn_bet_is_capped_rather_than_dropped(caplog):
+    data = {
+        1: [],
+        2: [
+            {"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "C", "loser": "D", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "E", "loser": "F", "winner_odds": 150, "loser_odds": -200},
+        ],
+    }
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+
+    with caplog.at_level(logging.WARNING):
+        Backtest(StubArena()).run_explicit(
+            data,
+            FixedFractionStrategy(0.25, fraction=0.4),
+            bankroll,
+            period_to_start_betting=1,
+        )
+
+    # Every selected bet reaches bet() and is accepted; the third is clamped to the
+    # live bettable funds rather than being rejected and silently dropped.
+    assert bankroll.bet_amounts == [400.0, 400.0, 200.0]
+    assert bankroll.settled_amounts == [400.0, 400.0, 200.0]
+    assert bankroll.total_funds == 0.0
+
+    capped_warnings = [
+        record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING and "exceeds bettable funds" in record.message
+    ]
+    assert len(capped_warnings) == 1
+    assert "on F" in capped_warnings[0]
 
 
 def test_same_period_bets_use_opening_bankroll():
@@ -90,8 +139,8 @@ def test_same_period_bets_use_opening_bankroll():
         period_to_start_betting=1,
     )
 
-    assert bankroll.bet_amounts == [100.0, 100.0]
-    assert bankroll.total_funds == 1050.0
+    assert bankroll.bet_amounts == [200.0, 200.0]
+    assert bankroll.total_funds == 1100.0
 
 
 def run_kelly_bet(winner_odds, *, price_bets_at_true_odds=True):
