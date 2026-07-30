@@ -1,12 +1,12 @@
 import logging
 from typing import Any, Dict
 
-from elote.arenas.base import BaseArena
+from keeks_elote.rating_arena import RatingArena
 
 logger = logging.getLogger(__name__)
 
 
-def calculate_probabilities(arena: BaseArena, game: Dict[str, Any]) -> float:
+def calculate_probabilities(arena: RatingArena, game: Dict[str, Any]) -> float:
     """Calculates the win probability for the 'winner' in a given game using the arena.
 
     This function retrieves the expected score (win probability) of the competitor
@@ -14,7 +14,7 @@ def calculate_probabilities(arena: BaseArena, game: Dict[str, Any]) -> float:
     current ratings within the provided elote Arena instance.
 
     :param arena: The elote Arena instance containing competitor ratings.
-    :type arena: BaseArena
+    :type arena: RatingArena
     :param game: A dictionary representing the game, must contain 'winner' and 'loser' keys.
     :type game: Dict[str, Any]
     :return: The calculated win probability for the competitor listed as 'winner'.

@@ -41,6 +41,9 @@ jobs:
       - name: Run tests
         run: uv run pytest --cov=keeks_elote tests/
 
+      - name: Type check
+        run: uv run mypy keeks_elote/
+
       # Mirrors `make lint`
       - name: Lint
         run: uv run ruff check .

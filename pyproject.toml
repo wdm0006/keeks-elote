@@ -13,6 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "mypy>=1.0",
     "pytest>=6.2",
     "pytest-cov",
     "pytest-mock",
@@ -33,3 +34,7 @@ ignore = ["E501"]
 
 [tool.ruff.format]
 # Using default ruff formatter settings
+
+[[tool.mypy.overrides]]
+module = "keeks.*"
+ignore_missing_imports = true

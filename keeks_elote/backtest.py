@@ -2,12 +2,12 @@ import copy
 import logging
 from typing import Any, Dict, List
 
-from elote.arenas.base import BaseArena
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies.base import BaseStrategy
 
 from keeks_elote.data_handling import prepare_data
 from keeks_elote.model_evaluation import calculate_probabilities
+from keeks_elote.rating_arena import RatingArena
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +42,14 @@ class Backtest:
     simulation.
 
     :param arena: An initialized elote Arena instance (e.g., GlickoArena).
-    :type arena: BaseArena
+    :type arena: RatingArena
     """
 
-    def __init__(self, arena: BaseArena):
+    def __init__(self, arena: RatingArena):
         """Initializes the Backtest environment.
 
         :param arena: An initialized elote Arena instance.
-        :type arena: BaseArena
+        :type arena: RatingArena
         """
         logger.info(f"Initializing Backtest with arena: {type(arena).__name__}")
         self._arena = arena
@@ -215,7 +215,7 @@ class Backtest:
         logger.debug(f"Prepared data keys (periods): {list(data.keys())}")
         period_keys = sorted(data)
 
-        bets_calculated_prev_period = []  # Store bets for execution in the *next* period
+        bets_calculated_prev_period: List[Dict[str, Any]] = []  # Store bets for execution in the *next* period
 
         for period_index, week_no in enumerate(period_keys):
             games = data[week_no]
