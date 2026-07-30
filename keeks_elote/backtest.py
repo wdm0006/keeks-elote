@@ -148,14 +148,29 @@ class Backtest:
         bets_to_execute: List[Dict[str, Any]],
         period_number: int,
     ) -> None:
-        """Executes a list of bets against the provided bankroll."""
+        """Executes a list of bets against the provided bankroll.
+
+        Every bet is sized as ``opening_funds * fraction``, the same base the
+        strategy was quoted against, and ``percent_bettable`` acts as a hard
+        exposure cap: a stake larger than the live bettable funds is clamped
+        down rather than skipped.
+        """
         logger.info(f"Period {period_number}: Executing {len(bets_to_execute)} bets calculated previously.")
-        available_to_bet = bankroll.total_funds * bankroll.percent_bettable
+        opening_funds = bankroll.total_funds
         for bet in bets_to_execute:
             try:
-                bet_amount = available_to_bet * bet["fraction"]
+                bet_amount = opening_funds * bet["fraction"]
 
-                if bet_amount > 0 and bet_amount <= available_to_bet:
+                if bet_amount > 0:
+                    bettable_funds = bankroll.bettable_funds
+                    if bet_amount > bettable_funds:
+                        logger.warning(
+                            f"Bet of {bet_amount:.2f} on {bet['label']} exceeds bettable funds "
+                            f"({bettable_funds:.2f}); staking the capped amount instead."
+                        )
+                        bet_amount = bettable_funds
+
+                if bet_amount > 0:
                     logger.debug(f"Betting {bet_amount:.2f} on {bet['label']} to win (Fraction: {bet['fraction']:.4f})")
                     bankroll.bet(bet_amount)
                     if bet["actual_outcome"]:

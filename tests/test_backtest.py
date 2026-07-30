@@ -34,16 +34,17 @@ def mock_arena(mocker):
 def mock_bankroll(mocker):
     """Fixture for a mocked keeks BankRoll (keeks 0.3.0+ API)."""
     bankroll = mocker.Mock(spec=BankRoll)
-    bankroll.total_funds = 1000.0
     bankroll.percent_bettable = 1.0  # Assume 100% bettable for mock simplicity
 
+    def set_funds(total_funds):
+        bankroll.total_funds = total_funds
+        bankroll.bettable_funds = total_funds * bankroll.percent_bettable
+
+    set_funds(1000.0)
+
     # Updated for keeks 0.3.0+: bet() and add_funds() instead of win_bet()/lose_bet()
-    bankroll.bet = mocker.Mock(
-        side_effect=lambda amount: setattr(bankroll, "total_funds", bankroll.total_funds - amount)
-    )
-    bankroll.add_funds = mocker.Mock(
-        side_effect=lambda amount: setattr(bankroll, "total_funds", bankroll.total_funds + amount)
-    )
+    bankroll.bet = mocker.Mock(side_effect=lambda amount: set_funds(bankroll.total_funds - amount))
+    bankroll.add_funds = mocker.Mock(side_effect=lambda amount: set_funds(bankroll.total_funds + amount))
     return bankroll
 
 
