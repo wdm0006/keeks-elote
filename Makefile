@@ -6,7 +6,7 @@ UV := uv
 VENV_DIR := .venv
 
 # Phony targets
-.PHONY: all venv install test lint format check clean
+.PHONY: all venv install test typecheck lint format check clean
 
 # Default target
 all: venv install
@@ -28,6 +28,11 @@ install: venv pyproject.toml
 test: install # Make test depend on install to ensure dev deps are present
 	$(UV) run --python $(VENV_DIR)/bin/python pytest --cov=keeks_elote tests/
 	@echo "Tests completed."
+
+# Type-check code
+typecheck: install
+	$(UV) run --python $(VENV_DIR)/bin/python mypy keeks_elote/
+	@echo "Type checking completed."
 
 # Lint code
 lint: install # Make lint depend on install
