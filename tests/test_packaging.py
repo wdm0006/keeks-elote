@@ -60,3 +60,21 @@ def test_wheel_requires_python_declares_310_floor(built_wheel):
     assert "3.12" in specifier
     assert "3.9" not in specifier
     assert "2.7" not in specifier
+
+
+def test_wheel_metadata_declares_mit_license(built_wheel):
+    """METADATA advertises the MIT license the README claims."""
+    metadata = message_from_string(_wheel_metadata(built_wheel, "METADATA"))
+    assert metadata["License-Expression"] == "MIT"
+    assert metadata.get_all("License-File") == ["LICENSE"]
+
+
+def test_wheel_ships_the_tracked_license_text(built_wheel):
+    """The wheel carries the repository's LICENSE verbatim."""
+    with zipfile.ZipFile(built_wheel) as archive:
+        (path,) = [n for n in archive.namelist() if n.endswith(".dist-info/licenses/LICENSE")]
+        shipped = archive.read(path).decode()
+
+    assert shipped == (PROJECT_ROOT / "LICENSE").read_text()
+    assert "MIT License" in shipped
+    assert "Copyright (c) 2017 Will McGinnis" in shipped

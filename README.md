@@ -78,4 +78,4 @@ college-football data.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details (if one exists, otherwise state MIT).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
