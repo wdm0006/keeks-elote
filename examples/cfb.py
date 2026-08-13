@@ -72,7 +72,7 @@ def main():
     # set up the objects
     logger.info("Setting up Arena and Bankroll...")
     arena = LambdaArena(func, base_competitor=GlickoCompetitor)
-    bank = BankRoll(initial_funds=10000, percent_bettable=0.5, max_draw_down=10e6)
+    bank = BankRoll(initial_funds=10000, percent_bettable=0.5, max_draw_down=1.0)
 
     logger.info("Setting up Strategy (using KellyCriterion)...")
     # NOTE: KellyCriterion in keeks 0.3.0+ takes payoff, loss, and transaction_cost

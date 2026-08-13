@@ -64,7 +64,7 @@ data = {
 arena = LambdaArena(lambda a, b: True, base_competitor=GlickoCompetitor)
 
 # The bankroll and a betting strategy from keeks.
-bankroll = BankRoll(initial_funds=10000, percent_bettable=0.5, max_draw_down=10e6)
+bankroll = BankRoll(initial_funds=10000, percent_bettable=0.5, max_draw_down=1.0)
 strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
 
 # Periods up to `period_to_start_betting` are dry runs that only build ratings;
