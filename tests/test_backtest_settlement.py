@@ -16,6 +16,14 @@ class StubArena:
         pass
 
 
+class RecordingArena(StubArena):
+    def __init__(self):
+        self.matchups = []
+
+    def tournament(self, matchups):
+        self.matchups.extend(matchups)
+
+
 class ProbabilityArena(StubArena):
     def __init__(self, probability):
         self.probability = probability
@@ -184,6 +192,51 @@ def test_true_odds_pricing_can_be_disabled():
     assert strategy.payoff == 1.0
 
 
-@pytest.mark.parametrize(("american_odds", "decimal_odds"), [(150, 2.5), (-200, 1.5)])
+@pytest.mark.parametrize(("american_odds", "decimal_odds"), [(150, 2.5), (-200, 1.5), (100.0, 2.0), (-100.0, 2.0)])
 def test_american_to_decimal(american_odds, decimal_odds):
     assert american_to_decimal(american_odds) == decimal_odds
+
+
+@pytest.mark.parametrize("american_odds", [0, 0.0, -0.0, float("inf"), float("-inf"), float("nan")])
+def test_american_to_decimal_rejects_zero_and_non_finite_odds(american_odds):
+    with pytest.raises(ValueError):
+        american_to_decimal(american_odds)
+
+
+@pytest.mark.parametrize("american_odds", [True, False, "150", "-200", [150], complex(150, 0)])
+def test_american_to_decimal_rejects_non_real_odds(american_odds):
+    with pytest.raises(TypeError):
+        american_to_decimal(american_odds)
+
+
+def test_invalid_odds_skip_only_that_side(caplog):
+    """One unusable price must not cost the game its opposite wager or its rating update."""
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": float("nan")}],
+    }
+    arena = RecordingArena()
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+
+    with caplog.at_level(logging.WARNING):
+        Backtest(arena).run_explicit(
+            data,
+            FixedFractionForAllBetsStrategy(),
+            bankroll,
+            period_to_start_betting=1,
+        )
+
+    # The strategy stakes every side it is offered, so only the invalid price is missing:
+    # A is staked 200.0 at +150 and settles as a winner.
+    assert bankroll.bet_amounts == [200.0]
+    assert bankroll.total_funds == 1300.0
+    assert ("A", "B") in arena.matchups
+
+    invalid_odds_warnings = [
+        record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING and "invalid odds" in record.message
+    ]
+    assert len(invalid_odds_warnings) == 1
+    assert "on B" in invalid_odds_warnings[0]
+    assert "nan" in invalid_odds_warnings[0]

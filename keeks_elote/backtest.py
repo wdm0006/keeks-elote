@@ -1,6 +1,8 @@
 import copy
 import logging
-from typing import Any, Dict, List
+import math
+import numbers
+from typing import Any, Dict, List, Optional
 
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies.base import BaseStrategy
@@ -13,11 +15,43 @@ logger = logging.getLogger(__name__)
 
 
 # Helper to convert American odds to decimal odds
-def american_to_decimal(american_odds: float) -> float:
-    if american_odds >= 0:
-        return (american_odds / 100.0) + 1.0
+def american_to_decimal(american_odds: Any) -> float:
+    """Converts numeric American odds to decimal odds.
+
+    :param american_odds: A finite, non-zero real number. Booleans, numeric
+                          strings and other non-real values are rejected rather
+                          than converted.
+    :raises TypeError: If the value is not a real number.
+    :raises ValueError: If the value is zero or non-finite.
+    :return: The equivalent decimal odds.
+    :rtype: float
+    """
+    if isinstance(american_odds, bool) or not isinstance(american_odds, numbers.Real):
+        raise TypeError(f"American odds must be a real number, got {american_odds!r}")
+
+    try:
+        odds = float(american_odds)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError(f"American odds must be representable as a float, got {american_odds!r}") from exc
+
+    if not math.isfinite(odds):
+        raise ValueError(f"American odds must be finite, got {american_odds!r}")
+    if odds == 0:
+        raise ValueError(f"American odds must be non-zero, got {american_odds!r}")
+
+    if odds > 0:
+        return (odds / 100.0) + 1.0
     else:
-        return (100.0 / abs(american_odds)) + 1.0
+        return (100.0 / abs(odds)) + 1.0
+
+
+def _decimal_odds_for_side(american_odds: Any, label: Any) -> Optional[float]:
+    """Converts one side's odds, warning and returning ``None`` when they are invalid."""
+    try:
+        return american_to_decimal(american_odds)
+    except (TypeError, ValueError) as exc:
+        logger.warning(f"Skipping wager on {label} due to invalid odds {american_odds!r}: {exc}")
+        return None
 
 
 def _strategy_for_bet(strategy: BaseStrategy, payoff: float, price_bets_at_true_odds: bool) -> BaseStrategy:
@@ -80,9 +114,13 @@ class Backtest:
                 prob_loser_wins = 1.0 - prob_winner_wins
 
                 # Evaluate betting on the nominal winner
-                if winner_odds_american is not None:
+                decimal_odds_winner = (
+                    _decimal_odds_for_side(winner_odds_american, winner_label)
+                    if winner_odds_american is not None
+                    else None
+                )
+                if decimal_odds_winner is not None:
                     try:
-                        decimal_odds_winner = american_to_decimal(winner_odds_american)
                         bet_strategy = _strategy_for_bet(
                             strategy,
                             decimal_odds_winner - 1.0,
@@ -109,9 +147,13 @@ class Backtest:
                         logger.error(f"Error evaluating bet on {winner_label}: {e}")
 
                 # Evaluate betting on the nominal loser
-                if loser_odds_american is not None:
+                decimal_odds_loser = (
+                    _decimal_odds_for_side(loser_odds_american, loser_label)
+                    if loser_odds_american is not None
+                    else None
+                )
+                if decimal_odds_loser is not None:
                     try:
-                        decimal_odds_loser = american_to_decimal(loser_odds_american)
                         bet_strategy = _strategy_for_bet(
                             strategy,
                             decimal_odds_loser - 1.0,
