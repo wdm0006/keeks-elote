@@ -6,6 +6,8 @@ authors = [
     { name = "Will McGinnis" },
 ]
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "keeks>=0.3.0",
     "elote>=1.2.0",
