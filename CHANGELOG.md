@@ -1,3 +1,24 @@
+v0.1.1
+======
+
+**Added:**
+ * Game scores are forwarded to the rating arena, so margin-aware rating systems (Massey,
+   Keener, Pythagorean) see the margin and not just who won. A game carrying `winner_score`
+   and `loser_score` is passed through as elote's full matchup tuple; a game without them
+   keeps the plain two-element form the win/loss systems expect. A score that is missing,
+   unparseable, or that contradicts the recorded winner (a `0-0` placeholder, for instance)
+   falls back to the result alone with a warning, rather than failing the run or reporting a
+   tie margin that never happened.
+
+**Fixed:**
+ * A period's *total* exposure is now capped by `percent_bettable`, rather than each bet
+   being clamped against the funds still live when it is placed. A strategy quoting a
+   fraction per game cannot know how many other games it is being asked about, so a
+   confident week routinely requested several times the bankroll; the earliest games then
+   consumed everything and the rest were staked from the scraps. Requested stakes that
+   exceed the budget are scaled down proportionally, preserving the relative sizing the
+   strategy asked for.
+
 v0.1.0
 ======
 
