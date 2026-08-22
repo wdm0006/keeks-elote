@@ -2,7 +2,7 @@ import copy
 import logging
 import math
 import numbers
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies.base import BaseStrategy
@@ -15,6 +15,49 @@ logger = logging.getLogger(__name__)
 
 
 # Helper to convert American odds to decimal odds
+def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
+    """Build the arena matchup tuple for a settled game.
+
+    Rating systems that model margin of victory (Massey, Keener, Pythagorean) need the
+    scores, not just who won. elote's ``tournament`` unpacks each tuple into ``matchup``,
+    whose signature is ``(a, b, attributes, match_time, outcome, scores)``, so a game
+    carrying ``winner_score`` and ``loser_score`` is forwarded with them and every other
+    game keeps the plain two-element form the win/loss systems expect.
+    """
+    winner, loser = game.get("winner"), game.get("loser")
+    winner_score, loser_score = game.get("winner_score"), game.get("loser_score")
+    if winner_score is None or loser_score is None:
+        return (winner, loser)
+    try:
+        scores = (float(winner_score), float(loser_score))
+    except (TypeError, ValueError):
+        logger.warning(
+            "Ignoring unparseable scores %r/%r for %s over %s.",
+            winner_score,
+            loser_score,
+            winner,
+            loser,
+        )
+        return (winner, loser)
+    if not scores[0] > scores[1]:
+        # The row says this competitor won but the scores do not agree. A placeholder like
+        # "0-0" for a score nobody recorded is the common case, and feeding it through as a
+        # real margin would tell a margin-aware system the game was a tie. Rate it on the
+        # recorded result alone rather than dropping the game or failing the run.
+        logger.warning(
+            "Scores %s do not show %s beating %s; rating this game on its result alone.",
+            scores,
+            winner,
+            loser,
+        )
+        return (winner, loser)
+
+    # Outcome is from the first competitor's perspective, and the first competitor is the
+    # winner, so this is always 1.0. elote requires it alongside scores and cross-checks
+    # the two for agreement.
+    return (winner, loser, None, None, 1.0, scores)
+
+
 def american_to_decimal(american_odds: Any) -> float:
     """Converts numeric American odds to decimal odds.
 
@@ -193,15 +236,36 @@ class Backtest:
         """Executes a list of bets against the provided bankroll.
 
         Every bet is sized as ``opening_funds * fraction``, the same base the
-        strategy was quoted against, and ``percent_bettable`` acts as a hard
-        exposure cap: a stake larger than the live bettable funds is clamped
-        down rather than skipped.
+        strategy was quoted against, so wagers inside a period do not compound
+        off each other.
+
+        ``percent_bettable`` is a cap on the period's *total* exposure, not on
+        each bet in isolation. A strategy quoting a fraction per game has no way
+        to know how many other games it is being asked about, so a week of
+        twenty confident bets routinely asks to stake several times the
+        bankroll. When the period's requested stakes exceed the budget they are
+        scaled down proportionally, which preserves the relative sizing the
+        strategy asked for while keeping the total within the cap. Clamping each
+        bet against the live funds instead would let the earliest games in a
+        period consume the whole bankroll and starve the rest.
         """
         logger.info(f"Period {period_number}: Executing {len(bets_to_execute)} bets calculated previously.")
         opening_funds = bankroll.total_funds
+        exposure_budget = bankroll.bettable_funds
+        requested = sum(opening_funds * bet["fraction"] for bet in bets_to_execute if bet["fraction"] > 0)
+
+        exposure_scale = 1.0
+        if requested > exposure_budget and requested > 0:
+            exposure_scale = exposure_budget / requested
+            logger.warning(
+                f"Period {period_number}: {len(bets_to_execute)} bets request {requested:.2f} "
+                f"({requested / opening_funds:.1%} of the bankroll) against a bettable budget of "
+                f"{exposure_budget:.2f}; scaling every stake by {exposure_scale:.4f}."
+            )
+
         for bet in bets_to_execute:
             try:
-                bet_amount = opening_funds * bet["fraction"]
+                bet_amount = opening_funds * bet["fraction"] * exposure_scale
 
                 if bet_amount > 0:
                     bettable_funds = bankroll.bettable_funds
@@ -286,7 +350,7 @@ class Backtest:
                 self._execute_bets_for_current_period(bankroll, current_period_bets_to_execute, week_no)
 
             # --- Update Arena Ratings with *current* period results ---
-            matchups = [(x.get("winner"), x.get("loser")) for x in games]
+            matchups = [_matchup_tuple(x) for x in games]
             if matchups:
                 logger.info(f"Updating arena ratings with {len(matchups)} matchups from period {week_no}.")
                 self._arena.tournament(matchups)
@@ -341,7 +405,7 @@ class Backtest:
             logger.info(f"Processing period {week_no} with {len(games)} games.")
             # print('\nrunning with week %s' % (week_no,)) # Replaced with logging
 
-            matchups = [(x.get("winner"), x.get("loser")) for x in games]
+            matchups = [_matchup_tuple(x) for x in games]
             # Only update ratings if there were games in the period
             if matchups:
                 logger.info(f"Updating arena ratings with {len(matchups)} matchups from period {week_no}.")
