@@ -19,7 +19,11 @@ The primary goal of `keeks-elote` is to provide a framework for simulating and a
 
 ## Installation
 
-You can install `keeks-elote` directly from the repo, soon we will publish it to PyPI.
+```bash
+pip install keeks-elote
+```
+
+Or from source:
 
 ```bash
 git clone https://github.com/wdm0006/keeks-elote.git
