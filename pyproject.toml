@@ -8,6 +8,19 @@ authors = [
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
+readme = "README.md"
+keywords = ["rating-systems", "elo", "kelly-criterion", "bankroll", "backtesting", "sports"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
 dependencies = [
     "keeks>=0.3.0",
     "elote>=1.2.0",
@@ -22,6 +35,11 @@ dev = [
     "ruff>=0.0.1",
     # Add other dev dependencies here
 ]
+
+[project.urls]
+Homepage = "https://github.com/wdm0006/keeks-elote"
+Repository = "https://github.com/wdm0006/keeks-elote"
+Issues = "https://github.com/wdm0006/keeks-elote/issues"
 
 [build-system]
 requires = ["hatchling"]

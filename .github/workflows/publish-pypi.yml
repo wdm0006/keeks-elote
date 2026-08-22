@@ -1,0 +1,81 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build_wheels_and_sdist:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: Create virtual environment
+        run: |
+          uv venv
+      
+      - name: Install dependencies
+        run: |
+          uv pip install build
+      
+      - name: Clean build artifacts
+        run: |
+          # Clean the build directories first
+          rm -fr build/
+          rm -fr dist/
+          rm -fr .eggs/
+          find . -name '*.egg-info' -exec rm -fr {} +
+          find . -name '*.egg' -exec rm -f {} +
+          find . -name '*.pyc' -exec rm -f {} +
+          find . -name '*.pyo' -exec rm -f {} +
+          find . -name '*~' -exec rm -f {} +
+          find . -name '__pycache__' -exec rm -fr {} +
+      
+      - name: Build distributions
+        run: |
+          # Build both wheel and sdist
+          uv run python -m build
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: ./dist/*
+          retention-days: 5
+          compression-level: 6
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: [build_wheels_and_sdist]
+    runs-on: ubuntu-latest
+    permissions:
+      # IMPORTANT: this permission is mandatory for Trusted Publishing
+      id-token: write
+    
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
+      
+      - name: List distribution files
+        run: |
+          ls -la dist/
+      
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
