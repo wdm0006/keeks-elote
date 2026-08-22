@@ -193,15 +193,36 @@ class Backtest:
         """Executes a list of bets against the provided bankroll.
 
         Every bet is sized as ``opening_funds * fraction``, the same base the
-        strategy was quoted against, and ``percent_bettable`` acts as a hard
-        exposure cap: a stake larger than the live bettable funds is clamped
-        down rather than skipped.
+        strategy was quoted against, so wagers inside a period do not compound
+        off each other.
+
+        ``percent_bettable`` is a cap on the period's *total* exposure, not on
+        each bet in isolation. A strategy quoting a fraction per game has no way
+        to know how many other games it is being asked about, so a week of
+        twenty confident bets routinely asks to stake several times the
+        bankroll. When the period's requested stakes exceed the budget they are
+        scaled down proportionally, which preserves the relative sizing the
+        strategy asked for while keeping the total within the cap. Clamping each
+        bet against the live funds instead would let the earliest games in a
+        period consume the whole bankroll and starve the rest.
         """
         logger.info(f"Period {period_number}: Executing {len(bets_to_execute)} bets calculated previously.")
         opening_funds = bankroll.total_funds
+        exposure_budget = bankroll.bettable_funds
+        requested = sum(opening_funds * bet["fraction"] for bet in bets_to_execute if bet["fraction"] > 0)
+
+        exposure_scale = 1.0
+        if requested > exposure_budget and requested > 0:
+            exposure_scale = exposure_budget / requested
+            logger.warning(
+                f"Period {period_number}: {len(bets_to_execute)} bets request {requested:.2f} "
+                f"({requested / opening_funds:.1%} of the bankroll) against a bettable budget of "
+                f"{exposure_budget:.2f}; scaling every stake by {exposure_scale:.4f}."
+            )
+
         for bet in bets_to_execute:
             try:
-                bet_amount = opening_funds * bet["fraction"]
+                bet_amount = opening_funds * bet["fraction"] * exposure_scale
 
                 if bet_amount > 0:
                     bettable_funds = bankroll.bettable_funds

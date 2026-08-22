@@ -99,7 +99,7 @@ def test_stake_uses_the_bankroll_the_strategy_was_quoted():
     assert bankroll.bet_amounts == [200.0]
 
 
-def test_overdrawn_bet_is_capped_rather_than_dropped(caplog):
+def test_overdrawn_period_is_scaled_proportionally_not_dropped(caplog):
     data = {
         1: [],
         2: [
@@ -118,19 +118,22 @@ def test_overdrawn_bet_is_capped_rather_than_dropped(caplog):
             period_to_start_betting=1,
         )
 
-    # Every selected bet reaches bet() and is accepted; the third is clamped to the
-    # live bettable funds rather than being rejected and silently dropped.
-    assert bankroll.bet_amounts == [400.0, 400.0, 200.0]
-    assert bankroll.settled_amounts == [400.0, 400.0, 200.0]
-    assert bankroll.total_funds == 0.0
+    # Three bets at 0.4 request 120% of the bankroll against a 100% budget, so every
+    # stake is scaled by the same factor. Each bet still reaches bet() rather than
+    # being rejected, and the earliest games no longer consume the whole bankroll.
+    # The final cent of difference is the residual per-bet clamp against
+    # bettable_funds, which BankRoll rounds to two places.
+    assert bankroll.bet_amounts == [pytest.approx(1000.0 / 3, abs=0.01)] * 3
+    assert bankroll.settled_amounts == [pytest.approx(1000.0 / 3, abs=0.01)] * 3
+    assert bankroll.total_funds == pytest.approx(0.0, abs=0.01)
 
     capped_warnings = [
         record.message
         for record in caplog.records
-        if record.levelno == logging.WARNING and "exceeds bettable funds" in record.message
+        if record.levelno == logging.WARNING and "scaling every stake" in record.message
     ]
     assert len(capped_warnings) == 1
-    assert "on F" in capped_warnings[0]
+    assert "120.0% of the bankroll" in capped_warnings[0]
 
 
 def test_same_period_bets_use_opening_bankroll():
@@ -240,3 +243,58 @@ def test_invalid_odds_skip_only_that_side(caplog):
     assert len(invalid_odds_warnings) == 1
     assert "on B" in invalid_odds_warnings[0]
     assert "nan" in invalid_odds_warnings[0]
+
+
+def test_period_exposure_never_exceeds_the_bettable_budget():
+    """percent_bettable caps the period's total stake, not each bet in isolation.
+
+    A strategy quoting a fraction per game cannot know how many other games it is
+    being asked about, so a confident week routinely requests several times the
+    bankroll. Clamping each bet against the live funds lets the earliest games spend
+    everything; scaling the period keeps the total inside the budget.
+    """
+    data = {
+        1: [],
+        2: [
+            {"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "C", "loser": "D", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "E", "loser": "F", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "G", "loser": "H", "winner_odds": 150, "loser_odds": -200},
+        ],
+    }
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+
+    Backtest(StubArena()).run_explicit(
+        data,
+        FixedFractionStrategy(0.25, fraction=0.4),
+        bankroll,
+        period_to_start_betting=1,
+    )
+
+    # Four bets at 0.4 request 1600 against a budget of 500.
+    assert sum(bankroll.bet_amounts) == pytest.approx(500.0)
+    # Proportional scaling, so equal requests stay equal.
+    assert bankroll.bet_amounts == [pytest.approx(125.0)] * 4
+
+
+def test_equal_fractions_stay_equal_after_scaling():
+    """Scaling must not advantage whichever game happens to be settled first."""
+    data = {
+        1: [],
+        2: [
+            {"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "C", "loser": "D", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "E", "loser": "F", "winner_odds": 150, "loser_odds": -200},
+        ],
+    }
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.6, max_draw_down=1.0)
+
+    Backtest(StubArena()).run_explicit(
+        data,
+        FixedFractionStrategy(0.25, fraction=0.5),
+        bankroll,
+        period_to_start_betting=1,
+    )
+
+    assert len({round(a, 6) for a in bankroll.bet_amounts}) == 1
+    assert sum(bankroll.bet_amounts) == pytest.approx(600.0)
