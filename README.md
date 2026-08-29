@@ -73,9 +73,23 @@ strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
 
 # Periods up to `period_to_start_betting` are dry runs that only build ratings;
 # real bets begin after it. Returns the updated bankroll.
-result = Backtest(arena).run_explicit(data, strategy, bankroll, period_to_start_betting=1)
+backtest = Backtest(arena)
+result = backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
 print(result.total_funds)
+
+# Every wager the run settled is also recorded, so a comparison run can be read
+# beyond its closing balance.
+print(len(backtest.bet_history))
 ```
+
+The closing `total_funds` conflates hit rate, stake sizing and how many bets were even
+placed, so `run_explicit` also fills `Backtest.bet_history`: one dict per settled wager
+carrying `period`, `label`, `opponent`, `fraction`, the `stake` actually placed (after the
+period's exposure scaling and any clamp against bettable funds), `payoff`, `won`, `profit`
+and `bankroll_after`. Candidates that moved no money are recorded too, flagged with
+`skipped_zero_stake` or `error`, so every bet the run considered is accounted for. The
+list is cleared at the start of each `run_explicit` call, so reusing a `Backtest` never
+mixes two runs. Aggregations such as ROI or hit rate are one line of caller code over it.
 
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
 college-football data.

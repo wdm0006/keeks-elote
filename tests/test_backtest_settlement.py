@@ -360,3 +360,216 @@ def test_scores_that_contradict_the_result_fall_back_to_the_plain_form(caplog):
 
     assert arena.matchups == [("A", "B")]
     assert any("do not show" in record.message for record in caplog.records)
+
+
+def test_bet_history_is_empty_before_the_first_run():
+    assert Backtest(StubArena()).bet_history == []
+
+
+def test_bet_history_is_cleared_not_appended_on_a_second_run():
+    """The Backtest instance is reusable, so a second run must not carry the first."""
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    backtest = Backtest(StubArena())
+
+    backtest.run_explicit(
+        data,
+        FixedFractionStrategy(0.75),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+    assert len(backtest.bet_history) == 1
+
+    backtest.run_explicit(
+        data,
+        FixedFractionForAllBetsStrategy(),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    # Two bets this run, not three accumulated across both.
+    assert len(backtest.bet_history) == 2
+    assert [record["label"] for record in backtest.bet_history] == ["A", "B"]
+
+
+def test_bet_history_records_a_winning_bet_exactly():
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    backtest.run_explicit(
+        data,
+        FixedFractionStrategy(0.75),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    # The same 1300.0 balance test_winning_bet_returns_stake_and_payoff pins, decomposed:
+    # 200.0 staked on A at +150 (payoff 1.5) returns 300.0 of profit.
+    assert backtest.bet_history == [
+        {
+            "period": 2,
+            "label": "A",
+            "opponent": "B",
+            "fraction": 0.2,
+            "stake": 200.0,
+            "payoff": 1.5,
+            "won": True,
+            "profit": 300.0,
+            "bankroll_after": 1300.0,
+            "skipped_zero_stake": False,
+            "error": None,
+        }
+    ]
+
+
+def test_bet_history_records_a_losing_bet_exactly():
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    backtest.run_explicit(
+        data,
+        FixedFractionStrategy(0.25),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    record = backtest.bet_history[0]
+    assert record["label"] == "B"
+    assert record["stake"] == 200.0
+    assert record["payoff"] == 0.5
+    assert record["won"] is False
+    assert record["profit"] == -200.0
+    assert record["bankroll_after"] == 800.0
+
+
+def test_bet_history_records_the_bankroll_trajectory_across_a_period():
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    backtest.run_explicit(
+        data,
+        FixedFractionForAllBetsStrategy(),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    assert [record["bankroll_after"] for record in backtest.bet_history] == [1300.0, 1100.0]
+
+
+def test_bet_history_records_scaled_stakes_not_requested_ones():
+    """The recorded stake is what reached bet(), after the period's exposure scaling.
+
+    Four bets at 0.4 request 400.0 each against a budget of 500.0, so a record derived
+    from ``opening_funds * fraction`` would say 400.0 and the sum would be 1600.0.
+    """
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [
+            {"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "C", "loser": "D", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "E", "loser": "F", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "G", "loser": "H", "winner_odds": 150, "loser_odds": -200},
+        ],
+    }
+    backtest.run_explicit(
+        data,
+        FixedFractionStrategy(0.25, fraction=0.4),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    stakes = [record["stake"] for record in backtest.bet_history]
+    assert stakes == [125.0] * 4
+    assert sum(stakes) == pytest.approx(500.0)
+    assert [record["profit"] for record in backtest.bet_history] == [-125.0] * 4
+
+
+def test_bet_history_records_the_clamped_amount():
+    """The last bet of an over-committed period is clamped down to the live funds."""
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [
+            {"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "C", "loser": "D", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "E", "loser": "F", "winner_odds": 150, "loser_odds": -200},
+        ],
+    }
+    backtest.run_explicit(
+        data,
+        FixedFractionStrategy(0.25, fraction=0.4),
+        BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    stakes = [record["stake"] for record in backtest.bet_history]
+    # Scaling gives 1000/3 each; by the third bet the bank is down to 333.33 (BankRoll
+    # rounds to two places), so the residual clamp trims that final stake.
+    assert stakes[:2] == [pytest.approx(1000.0 / 3)] * 2
+    assert stakes[2] == 333.33
+    assert stakes[2] < stakes[0]
+    assert backtest.bet_history[2]["profit"] == -333.33
+    assert backtest.bet_history[2]["bankroll_after"] == 0.0
+
+
+def test_bet_history_records_a_zero_stake_bet_with_its_flag():
+    """A candidate scaled to nothing is recorded, not silently dropped."""
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.0, max_draw_down=1.0)
+
+    result = backtest.run_explicit(
+        data,
+        FixedFractionStrategy(0.75),
+        bankroll,
+        period_to_start_betting=1,
+    )
+
+    assert result is bankroll
+    assert result.total_funds == 1000.0
+    record = backtest.bet_history[0]
+    assert record["label"] == "A"
+    assert record["fraction"] == 0.2
+    assert record["stake"] == 0.0
+    assert record["profit"] == 0.0
+    assert record["skipped_zero_stake"] is True
+    assert record["error"] is None
+
+
+def test_bet_history_records_a_failed_settlement_with_its_error():
+    """A settlement that raises is accounted for rather than vanishing from the record."""
+
+    class FailingBankRoll(BankRoll):
+        def bet(self, amount):
+            raise RuntimeError("bookmaker unavailable")
+
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    backtest.run_explicit(
+        data,
+        FixedFractionStrategy(0.75),
+        FailingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    record = backtest.bet_history[0]
+    assert record["stake"] == 0.0
+    assert record["profit"] == 0.0
+    assert record["skipped_zero_stake"] is False
+    assert record["error"] == "bookmaker unavailable"
+    assert record["bankroll_after"] == 1000.0
