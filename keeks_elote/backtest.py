@@ -130,6 +130,7 @@ class Backtest:
         """
         logger.info(f"Initializing Backtest with arena: {type(arena).__name__}")
         self._arena = arena
+        self.bet_history: List[Dict[str, Any]] = []
 
     def _evaluate_bets_for_next_period(
         self,
@@ -264,6 +265,12 @@ class Backtest:
             )
 
         for bet in bets_to_execute:
+            # Recorded after scaling and clamping, so the record always carries the amount
+            # that reached bankroll.bet() rather than the amount the strategy asked for.
+            stake = 0.0
+            profit = 0.0
+            skipped_zero_stake = False
+            error: Optional[str] = None
             try:
                 bet_amount = opening_funds * bet["fraction"] * exposure_scale
 
@@ -279,19 +286,41 @@ class Backtest:
                 if bet_amount > 0:
                     logger.debug(f"Betting {bet_amount:.2f} on {bet['label']} to win (Fraction: {bet['fraction']:.4f})")
                     bankroll.bet(bet_amount)
+                    stake = bet_amount
                     if bet["actual_outcome"]:
                         # Win: return bet amount plus winnings
                         bankroll.add_funds(bet_amount + bet_amount * bet["payoff"])
+                        profit = stake * bet["payoff"]
                         logger.debug(f"Bet WON. Bankroll: {bankroll.total_funds:.2f}")
                     else:
                         # Loss: bet amount already deducted by bet()
+                        profit = -stake
                         logger.debug(f"Bet LOST. Bankroll: {bankroll.total_funds:.2f}")
                 else:
+                    skipped_zero_stake = True
                     logger.debug(
                         f"Bet fraction {bet['fraction']:.4f} resulted in zero or invalid bet amount ({bet_amount:.2f}) for {bet['label']}."
                     )
             except Exception as e:
+                stake, profit = 0.0, 0.0
+                error = str(e)
                 logger.error(f"Error processing bet for {bet['label']}: {e}. Bankroll: {bankroll.total_funds}")
+
+            self.bet_history.append(
+                {
+                    "period": period_number,
+                    "label": bet["label"],
+                    "opponent": bet["opponent"],
+                    "fraction": bet["fraction"],
+                    "stake": stake,
+                    "payoff": bet["payoff"],
+                    "won": bet["actual_outcome"],
+                    "profit": profit,
+                    "bankroll_after": bankroll.total_funds,
+                    "skipped_zero_stake": skipped_zero_stake,
+                    "error": error,
+                }
+            )
         logger.info(f"End of period {period_number} betting. Bankroll: {bankroll.total_funds:.2f}")
 
     def run_explicit(
@@ -327,8 +356,36 @@ class Backtest:
         :type price_bets_at_true_odds: bool
         :return: The BankRoll object, updated with results from the backtest.
         :rtype: BankRoll
+
+        Every wager this run settles is also recorded on ``self.bet_history``, which is
+        cleared at the start of each call so re-running the same ``Backtest`` never
+        appends to a previous run's records. Each entry is a dict with:
+
+        ``period``
+            The period the bet settled in (one after the period it was priced in).
+        ``label`` / ``opponent``
+            The competitor backed and the other side of the game.
+        ``fraction``
+            The stake fraction the strategy quoted.
+        ``stake``
+            The amount actually staked, after the period's exposure scaling and after
+            the residual clamp against live ``bettable_funds``.
+        ``payoff``
+            The game's decimal odds minus one.
+        ``won``
+            Whether the backed competitor won.
+        ``profit``
+            ``stake * payoff`` on a win, ``-stake`` on a loss.
+        ``bankroll_after``
+            ``bankroll.total_funds`` once this bet had settled.
+        ``skipped_zero_stake`` / ``error``
+            Flags for the two candidates that moved no money: a stake that scaled or
+            clamped to zero, and a settlement that raised (the message is recorded).
+            Both carry ``stake`` and ``profit`` of ``0.0``, so every candidate the run
+            considered is accounted for rather than silently omitted.
         """
         logger.info("Starting explicit backtest run.")
+        self.bet_history = []
         logger.debug(f"Using strategy: {type(strategy).__name__} with bankroll: {bankroll.total_funds}")
         logger.debug(f"Period to start betting: {period_to_start_betting}")
 
