@@ -1,10 +1,12 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
+
+from keeks_elote.types import GameRecord
 
 logger = logging.getLogger(__name__)
 
 
-def prepare_data(data: Dict[int, List[Dict[str, Any]]]) -> Dict[int, List[Dict[str, Any]]]:
+def prepare_data(data: Dict[int, List[Any]]) -> Dict[int, List[GameRecord]]:
     """Prepares and validates the input data structure.
 
     Validation rules:
@@ -22,10 +24,16 @@ def prepare_data(data: Dict[int, List[Dict[str, Any]]]) -> Dict[int, List[Dict[s
     passthrough contract is preserved. A new structure is only built when one
     or more malformed games are dropped.
 
+    The element type is ``Any`` because this is the raw, untrusted boundary of the
+    package: well-formed callers may declare their data as
+    ``Dict[int, List[GameRecord]]``, but anything that arrives here is inspected at
+    runtime rather than trusted.
+
     :param data: Raw historical game data, expected to be keyed by period.
-    :type data: Dict[int, List[Dict[str, Any]]]
-    :return: The validated data with any malformed games removed.
-    :rtype: Dict[int, List[Dict[str, Any]]]
+    :type data: Dict[int, List[Any]]
+    :return: The validated data with any malformed games removed, typed as the
+        :class:`~keeks_elote.types.GameRecord` schema.
+    :rtype: Dict[int, List[GameRecord]]
     :raises TypeError: If ``data`` is not a dict or a period does not contain a list.
     """
     logger.info("Preparing data...")
@@ -51,5 +59,8 @@ def prepare_data(data: Dict[int, List[Dict[str, Any]]]) -> Dict[int, List[Dict[s
         cleaned[period] = valid_games
 
     logger.info("Data preparation complete.")
-    # Preserve the passthrough contract (same object) when nothing was dropped.
-    return data if dropped == 0 else cleaned
+    # Validation checked exactly what GameRecord requires (winner/loser present and
+    # non-None); the schema's other keys are optional, so the survivors satisfy it
+    # even though they are carried as plain dicts.
+    prepared = data if dropped == 0 else cleaned
+    return cast(Dict[int, List[GameRecord]], prepared)
