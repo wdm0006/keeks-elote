@@ -802,7 +802,7 @@ def test_stateful_strategy_receives_settled_results_mid_backtest():
     """
     data = {
         1: [],
-        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": None}],
     }
     strategy = DynamicBankrollManagement(base_fraction=0.2, payoff=1.0, loss=1.0, transaction_cost=0.0)
     assert strategy.get_streak_factor() == 1.0  # nothing recorded yet
@@ -811,8 +811,9 @@ def test_stateful_strategy_receives_settled_results_mid_backtest():
     bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
     backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
 
-    # Exactly one bet settles: the 0.25-probability loser side stays below the
-    # strategy's 0.5 min_probability. The win moves the streak factor off neutral.
+    # Exactly one bet settles: the loser side is unbettable (no valid odds), so the
+    # only candidate is the A-side win, on every supported keeks version. The win
+    # moves the streak factor off neutral.
     assert len(strategy.results) == 1
     assert strategy.results[0] > 0
     assert strategy.get_streak_factor() > 1.0

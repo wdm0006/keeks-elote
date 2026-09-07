@@ -27,9 +27,11 @@ def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
     ``winner_score`` > ``loser_score`` is forwarded with them; elote's ``tournament``
     unpacks each tuple into ``matchup``, whose signature is
     ``(a, b, attributes, match_time, outcome, scores)``, and cross-checks the scores
-    against the outcome. A record with no winner/loser labels carries no result to
-    forward, so it falls back to the two-element comparison-function form (warned, and
-    unreachable after ``prepare_data``, which drops such games).
+    against the outcome. That signature requires elote >= 1.3.0, the declared floor:
+    1.2.x has no way to receive a recorded result at all. A record with no
+    winner/loser labels carries no result to forward, so it falls back to the
+    two-element comparison-function form (warned, and unreachable after
+    ``prepare_data``, which drops such games).
     """
     winner, loser = game.get("winner"), game.get("loser")
     if winner is None or loser is None:

@@ -23,7 +23,10 @@ classifiers = [
 ]
 dependencies = [
     "keeks>=0.3.0,<0.8",
-    "elote>=1.2.0,<1.4",
+    # elote's matchup() gained its outcome/scores parameters in 1.3.0; on 1.2.x the
+    # arena cannot receive a recorded result, so backtests would silently re-decide
+    # every settled game through the user's comparison function.
+    "elote>=1.3.0,<1.4",
 ]
 
 [project.optional-dependencies]
