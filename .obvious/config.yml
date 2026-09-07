@@ -1,0 +1,12 @@
+# Repository policy for obvious agents — auto-detected from GitHub settings 2026-09-06.
+repo: wdm0006/keeks-elote
+defaultBranch: master
+# merge commit, squash, and rebase are all allowed on this repo; squash chosen to keep
+# history linear for contract/tooling changes. deleteBranchOnMerge is false on GitHub.
+mergeMethod: squash
+requireHumanMerge: true
+notes: >
+  CI (.github/workflows/ci.yml) runs on push to master and on all pull requests:
+  pytest with coverage, mypy, ruff check, and ruff format --check across Python
+  3.10-3.14, plus a lowest-direct dependency floor job. A green CI run is the
+  merge bar for changes here.
