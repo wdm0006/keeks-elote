@@ -13,6 +13,19 @@ Unreleased
    neither format is skipped with a warning instead of being priced as a tiny American odd.
  * `pnl(bet_history)` and `roi(bet_history)` report a ledger's net profit and
    per-unit-staked return alongside `summarize_bet_history`.
+ * `load_csv(path)` and `load_dataframe(df)` build the period-keyed game dict `prepare_data`
+   consumes from a CSV file or a pandas-style DataFrame: required `period`/`winner`/`loser`
+   columns, optional `winner_odds`/`loser_odds` prices and `winner_score`/`loser_score`
+   margins, and extra columns carried through. Rows without recorded winner/loser labels are
+   dropped with a warning and unparseable optional numbers drop just that field, while a row
+   whose period is missing or non-integer raises a `ValueError` naming its line, so a corrupt
+   schedule cannot load half-silently. `load_dataframe` needs no pandas import -- any object
+   with `columns` and `to_dict(orient="records")` works.
+ * A second end-to-end example, `examples/epl.py`, runs the real 2023-24 Premier League
+   season (298 decisive matches with Bet365 closing prices, draws excluded -- the included
+   `examples/data/epl_2023_24.csv` is from football-data.co.uk) through `load_csv`,
+   `create_arena`, decimal-odds pricing, `edge`, and the `pnl`/`roi` metrics. It runs in CI
+   through the same documented-examples test as `examples/cfb.py`.
 
 v0.2.0
 ======

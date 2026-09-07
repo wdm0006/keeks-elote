@@ -127,7 +127,8 @@ arena = create_arena("glicko")
 An unknown name raises a `ValueError` listing the supported ones. The package
 root also re-exports the functions the backtest itself runs on, so a single
 import covers the whole flow: `prepare_data` (validates and cleans period-keyed
-input), `calculate_probabilities` (win probability from the arena),
+input), `load_csv`/`load_dataframe` (build that input from a CSV file or a
+DataFrame), `calculate_probabilities` (win probability from the arena),
 `to_decimal` (either-format odds conversion, with `american_to_decimal` for
 American-only input), `edge` (expected value per unit staked), `pnl`/`roi`
 (ledger profit and per-unit-staked return), and `summarize_bet_history` (the
@@ -136,8 +137,7 @@ ledger aggregation behind `run_summary()`).
 ### Odds formats and value metrics
 
 Game records accept prices in either format, and `to_decimal` converts any price explicitly:
-a negative price or one of magnitude 100 or more is read as American, anything from 1.0 up
-to 100 as decimal. `edge` prices a wager's expected value per unit staked -- the comparison
+a negative price or one of magnitude 1prices a wager's expected value per unit staked -- the comparison
 between the model's win probability and the odds-implied one -- and `pnl`/`roi` net a
 `bet_history` ledger into its profit and per-unit-staked return.
 
@@ -149,8 +149,29 @@ to_decimal(1.91)   # 1.91     -- decimal
 edge(0.5, 2.1)     # 0.05 -- a half chance at 2.1 wins 5% per unit staked
 ```
 
+### Loading your own data
+
+`load_csv` and `load_dataframe` turn flat rows into the period-keyed dict the backtest
+consumes: required `period`/`winner`/`loser` columns, optional `winner_odds`/`loser_odds`
+prices and `winner_score`/`loser_score` margins, and any extra columns (dates, venues...)
+carried through untouched. Row content is handled the way `prepare_data` handles it --
+rows missing winner/loser labels are dropped with a warning and unparseable optional
+numbers drop just that field -- while a row whose period is missing or not an integer
+raises `ValueError` naming its line, so a corrupt schedule cannot load half-silently.
+`load_dataframe` takes a pandas-style frame (pandas itself is not a dependency; any
+object with `columns` and `to_dict(orient="records")` works):
+
+```python
+from keeks_elote import load_csv, load_dataframe
+
+data = load_csv("data/epl_2023_24.csv")   # {1: [{...}, ...], 2: [...], ...}
+data = load_dataframe(df)                 # same shape, from a DataFrame
+```
+
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
-college-football data.
+college-football data, and [`examples/epl.py`](examples/epl.py) for the same flow over
+the real 2023-24 Premier League season -- `load_csv`, `create_arena`, decimal odds,
+`edge`, and the `pnl`/`roi` metrics.
 
 ## License
 
