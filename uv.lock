@@ -733,7 +733,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "elote", specifier = ">=1.2.0,<1.4" },
+    { name = "elote", specifier = ">=1.3.0,<1.4" },
     { name = "keeks", specifier = ">=0.3.0,<0.8" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=6.2" },
