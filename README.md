@@ -92,6 +92,14 @@ and `bankroll_after`. Candidates that moved no money are recorded too, flagged w
 list is cleared at the start of each `run_explicit` call, so reusing a `Backtest` never
 mixes two runs. Aggregations such as ROI or hit rate are one line of caller code over it.
 
+Strategies that maintain state through keeks' `record_result(won, return_pct)` hook --
+`DynamicBankrollManagement`'s streak and volatility windows, for example -- are notified
+of every bet the run actually settles, so their sizing adapts as the backtest progresses.
+Strategies without the hook are unaffected, and stateful strategies are always notified
+on the instance you passed in, even when each bet is priced by a freshly constructed
+re-priced copy. The notification is skipped for candidates that moved no money (a zero
+stake or a failed settlement), since there is no settled result to record.
+
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
 college-football data.
 
