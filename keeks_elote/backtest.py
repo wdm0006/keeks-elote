@@ -1,8 +1,9 @@
 import copy
+import inspect
 import logging
 import math
 import numbers
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies.base import BaseStrategy
@@ -97,10 +98,84 @@ def _decimal_odds_for_side(american_odds: Any, label: Any) -> Optional[float]:
         return None
 
 
+# Strategy types already warned about when a re-price fell back to a copy; one warning
+# per type keeps a long backtest from repeating the same diagnosis on every bet.
+_copy_fallback_warned: Set[type] = set()
+
+
+def _reprice_by_construction(strategy: BaseStrategy, payoff: float, loss: float) -> Optional[BaseStrategy]:
+    """Builds a fresh strategy of the same type carrying the bet's pricing, or ``None``.
+
+    keeks strategies are immutable after init, so re-pricing a bet must never write
+    attributes on a (copied) instance; a new one is constructed through the real
+    constructor instead. keeks strategies store every constructor argument under a
+    same-named attribute, so the other arguments are read back off the instance and
+    replayed through ``__init__``. ``None`` means the type does not follow that
+    contract and cannot be faithfully reconstructed.
+    """
+    try:
+        parameters = inspect.signature(type(strategy).__init__).parameters
+    except (TypeError, ValueError):  # pragma: no cover - opaque C-level initializers
+        return None
+
+    kwargs: Dict[str, Any] = {}
+    for name, parameter in parameters.items():
+        if parameter.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+            inspect.Parameter.POSITIONAL_ONLY,
+        ):
+            return None
+        if name == "self":
+            continue
+        if name == "payoff":
+            kwargs[name] = payoff
+        elif name == "loss":
+            kwargs[name] = loss
+        else:
+            value = getattr(strategy, name, parameter.default)
+            if value is inspect.Parameter.empty:
+                # A required constructor argument the instance never stored cannot be
+                # replayed; its original value is unknowable. CPPI's initial_bankroll,
+                # which is consumed into the floor at init, is the shipped example.
+                return None
+            kwargs[name] = value
+    if "payoff" not in kwargs or "loss" not in kwargs:
+        # The constructor does not accept the bet's pricing, so a fresh instance
+        # would silently quote the strategy's own configured pricing instead.
+        return None
+    return type(strategy)(**kwargs)
+
+
 def _strategy_for_bet(strategy: BaseStrategy, payoff: float, price_bets_at_true_odds: bool) -> BaseStrategy:
+    """Returns the strategy instance to quote a single bet with.
+
+    With ``price_bets_at_true_odds`` the bet is quoted a freshly constructed strategy
+    re-priced for the game (the bet's payoff, full-stake loss) and the caller's
+    strategy is left untouched. Without it, the strategy itself is passed through so
+    it prices from its own configuration.
+    """
     if not price_bets_at_true_odds:
         return strategy
 
+    repriced = _reprice_by_construction(strategy, payoff, 1.0)
+    if repriced is not None:
+        return repriced
+
+    # Strategies outside the keeks constructor contract (test doubles, custom
+    # subclasses with their own initializers) cannot be re-priced by construction,
+    # so their quotes fall back to the historical copied instance. That copy only
+    # re-prices strategies that read the copied attributes; on a keeks version that
+    # forbids attribute writes it fails loudly per bet rather than silently sizing
+    # stakes from stale prices.
+    if type(strategy) not in _copy_fallback_warned:
+        _copy_fallback_warned.add(type(strategy))
+        logger.warning(
+            "Strategy %s does not follow the keeks constructor contract (every argument "
+            "stored as a same-named attribute); quoting this bet from a copied instance "
+            "instead of a freshly constructed one.",
+            type(strategy).__name__,
+        )
     bet_strategy = copy.copy(strategy)
     bet_strategy.payoff = payoff
     bet_strategy.loss = 1.0
