@@ -17,18 +17,33 @@ logger = logging.getLogger(__name__)
 
 # Helper to convert American odds to decimal odds
 def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
-    """Build the arena matchup tuple for a settled game.
+    """Builds the arena matchup tuple for a settled game, pinning the recorded result.
 
-    Rating systems that model margin of victory (Massey, Keener, Pythagorean) need the
-    scores, not just who won. elote's ``tournament`` unpacks each tuple into ``matchup``,
-    whose signature is ``(a, b, attributes, match_time, outcome, scores)``, so a game
-    carrying ``winner_score`` and ``loser_score`` is forwarded with them and every other
-    game keeps the plain two-element form the win/loss systems expect.
+    The record names the winner, so the outcome is always forwarded as ``1.0`` from the
+    first competitor's perspective: the arena's comparison function predicts rather than
+    records, and a non-trivial one must never decide ground truth for a game that has a
+    recorded winner. Rating systems that model margin of victory (Massey, Keener,
+    Pythagorean) additionally need the scores, so a game carrying a usable
+    ``winner_score`` > ``loser_score`` is forwarded with them; elote's ``tournament``
+    unpacks each tuple into ``matchup``, whose signature is
+    ``(a, b, attributes, match_time, outcome, scores)``, and cross-checks the scores
+    against the outcome. That signature requires elote >= 1.3.0, the declared floor:
+    1.2.x has no way to receive a recorded result at all. A record with no
+    winner/loser labels carries no result to forward, so it falls back to the
+    two-element comparison-function form (warned, and unreachable after
+    ``prepare_data``, which drops such games).
     """
     winner, loser = game.get("winner"), game.get("loser")
+    if winner is None or loser is None:
+        logger.warning(
+            "Game record %r carries no recorded result; deferring to the arena's comparison function.",
+            game,
+        )
+        return (winner, loser)
+
     winner_score, loser_score = game.get("winner_score"), game.get("loser_score")
     if winner_score is None or loser_score is None:
-        return (winner, loser)
+        return (winner, loser, None, None, 1.0)
     try:
         scores = (float(winner_score), float(loser_score))
     except (TypeError, ValueError):
@@ -39,7 +54,7 @@ def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
             winner,
             loser,
         )
-        return (winner, loser)
+        return (winner, loser, None, None, 1.0)
     if not scores[0] > scores[1]:
         # The row says this competitor won but the scores do not agree. A placeholder like
         # "0-0" for a score nobody recorded is the common case, and feeding it through as a
@@ -51,7 +66,7 @@ def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
             winner,
             loser,
         )
-        return (winner, loser)
+        return (winner, loser, None, None, 1.0)
 
     # Outcome is from the first competitor's perspective, and the first competitor is the
     # winner, so this is always 1.0. elote requires it alongside scores and cross-checks
@@ -182,6 +197,34 @@ def _strategy_for_bet(strategy: BaseStrategy, payoff: float, price_bets_at_true_
     return bet_strategy
 
 
+def _record_result_on_strategy(
+    strategy: BaseStrategy,
+    won: bool,
+    profit: float,
+    bankroll_before: float,
+) -> None:
+    """Notifies a stateful strategy of a settled bet, mirroring keeks' own simulators.
+
+    keeks strategies may expose ``record_result(won, return_pct)`` to keep state between
+    bets (DynamicBankrollManagement's streak and volatility windows, for example);
+    strategies without the hook are skipped. ``return_pct`` follows the simulators'
+    convention -- the bet's net profit over the bankroll it was placed from -- because a
+    re-priced bet's economics differ from the strategy's configured pricing. A hook that
+    raises is logged and skipped: the bet's money has already settled truthfully, and
+    one broken state hook should not corrupt the financial record or abort the run.
+    """
+    hook = getattr(strategy, "record_result", None)
+    if not callable(hook):
+        return
+    try:
+        hook(won, profit / bankroll_before if bankroll_before > 0 else 0.0)
+    except Exception:
+        logger.exception(
+            "Strategy %s raised from record_result; continuing without the state update.",
+            type(strategy).__name__,
+        )
+
+
 class Backtest:
     """Runs backtests for betting strategies using an elote Arena for ratings.
 
@@ -305,6 +348,7 @@ class Backtest:
 
     def _execute_bets_for_current_period(
         self,
+        strategy: BaseStrategy,
         bankroll: BankRoll,
         bets_to_execute: List[Dict[str, Any]],
         period_number: int,
@@ -314,6 +358,9 @@ class Backtest:
         Every bet is sized as ``opening_funds * fraction``, the same base the
         strategy was quoted against, so wagers inside a period do not compound
         off each other.
+
+        After a bet settles with money on it, strategies exposing keeks'
+        ``record_result`` hook are notified via :func:`_record_result_on_strategy`.
 
         ``percent_bettable`` is a cap on the period's *total* exposure, not on
         each bet in isolation. A strategy quoting a fraction per game has no way
@@ -344,6 +391,7 @@ class Backtest:
             # that reached bankroll.bet() rather than the amount the strategy asked for.
             stake = 0.0
             profit = 0.0
+            bankroll_before = 0.0
             skipped_zero_stake = False
             error: Optional[str] = None
             try:
@@ -360,6 +408,7 @@ class Backtest:
 
                 if bet_amount > 0:
                     logger.debug(f"Betting {bet_amount:.2f} on {bet['label']} to win (Fraction: {bet['fraction']:.4f})")
+                    bankroll_before = bankroll.total_funds
                     bankroll.bet(bet_amount)
                     stake = bet_amount
                     if bet["actual_outcome"]:
@@ -396,6 +445,8 @@ class Backtest:
                     "error": error,
                 }
             )
+            if stake > 0 and error is None:
+                _record_result_on_strategy(strategy, bet["actual_outcome"], profit, bankroll_before)
         logger.info(f"End of period {period_number} betting. Bankroll: {bankroll.total_funds:.2f}")
 
     def run_explicit(
@@ -431,6 +482,14 @@ class Backtest:
         :type price_bets_at_true_odds: bool
         :return: The BankRoll object, updated with results from the backtest.
         :rtype: BankRoll
+
+        Strategies that expose keeks' ``record_result(won, return_pct)`` hook are
+        notified of every bet the run actually settles -- always on the ``strategy``
+        instance passed in, even when each bet is priced by a freshly constructed
+        re-priced copy -- so stateful strategies such as
+        ``DynamicBankrollManagement`` update their state mid-run. Strategies without
+        the hook are unaffected, and candidates that move no money (a zero stake or
+        a failed settlement) notify nothing.
 
         Every wager this run settles is also recorded on ``self.bet_history``, which is
         cleared at the start of each call so re-running the same ``Backtest`` never
@@ -479,7 +538,7 @@ class Backtest:
             # --- Execute bets for the *current* period (calculated in the previous iteration) ---
             is_betting_period = week_no > period_to_start_betting
             if is_betting_period:
-                self._execute_bets_for_current_period(bankroll, current_period_bets_to_execute, week_no)
+                self._execute_bets_for_current_period(strategy, bankroll, current_period_bets_to_execute, week_no)
 
             # --- Update Arena Ratings with *current* period results ---
             matchups = [_matchup_tuple(x) for x in games]

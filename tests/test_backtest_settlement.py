@@ -1,12 +1,14 @@
 import logging
 
 import pytest
+from elote import EloCompetitor
+from elote.arenas.lambda_arena import LambdaArena
 from keeks.bankroll import BankRoll
-from keeks.binary_strategies import KellyCriterion
+from keeks.binary_strategies import DynamicBankrollManagement, KellyCriterion
 from keeks.binary_strategies.base import BaseStrategy
 
 from keeks_elote import Backtest
-from keeks_elote.backtest import _strategy_for_bet, american_to_decimal
+from keeks_elote.backtest import _matchup_tuple, _strategy_for_bet, american_to_decimal
 
 
 class StubArena:
@@ -400,7 +402,7 @@ def test_invalid_odds_skip_only_that_side(caplog):
     # A is staked 200.0 at +150 and settles as a winner.
     assert bankroll.bet_amounts == [200.0]
     assert bankroll.total_funds == 1300.0
-    assert ("A", "B") in arena.matchups
+    assert ("A", "B", None, None, 1.0) in arena.matchups
 
     invalid_odds_warnings = [
         record.message
@@ -483,8 +485,8 @@ def test_scores_are_forwarded_to_the_arena_when_present():
     assert arena.matchups == [("A", "B", None, None, 1.0, (31.0, 17.0))]
 
 
-def test_a_game_without_scores_keeps_the_plain_form():
-    """Win/loss systems must keep receiving two-element tuples."""
+def test_a_game_without_scores_pins_the_recorded_outcome():
+    """A score-less game still records who won; the arena's lambda must not decide it."""
     arena = RecordingArena()
     data = {1: [{"winner": "A", "loser": "B"}]}
     Backtest(arena).run_explicit(
@@ -494,11 +496,11 @@ def test_a_game_without_scores_keeps_the_plain_form():
         period_to_start_betting=1,
     )
 
-    assert arena.matchups == [("A", "B")]
+    assert arena.matchups == [("A", "B", None, None, 1.0)]
 
 
-def test_unparseable_scores_fall_back_to_the_plain_form(caplog):
-    """A malformed score must not take down the rating update."""
+def test_unparseable_scores_pin_the_recorded_outcome(caplog):
+    """A malformed score must not take down the rating update or unpin the result."""
     arena = RecordingArena()
     data = {1: [{"winner": "A", "loser": "B", "winner_score": "n/a", "loser_score": 17}]}
     with caplog.at_level(logging.WARNING):
@@ -509,11 +511,11 @@ def test_unparseable_scores_fall_back_to_the_plain_form(caplog):
             period_to_start_betting=1,
         )
 
-    assert arena.matchups == [("A", "B")]
+    assert arena.matchups == [("A", "B", None, None, 1.0)]
     assert any("unparseable scores" in record.message for record in caplog.records)
 
 
-def test_scores_that_contradict_the_result_fall_back_to_the_plain_form(caplog):
+def test_scores_that_contradict_the_result_pin_the_recorded_outcome(caplog):
     """A 0-0 placeholder must not be fed through as a real tie margin."""
     arena = RecordingArena()
     data = {1: [{"winner": "A", "loser": "B", "winner_score": 0, "loser_score": 0}]}
@@ -525,8 +527,56 @@ def test_scores_that_contradict_the_result_fall_back_to_the_plain_form(caplog):
             period_to_start_betting=1,
         )
 
-    assert arena.matchups == [("A", "B")]
+    assert arena.matchups == [("A", "B", None, None, 1.0)]
     assert any("do not show" in record.message for record in caplog.records)
+
+
+def test_a_game_without_labels_defers_to_the_comparison_function(caplog):
+    """A record with no winner carries no result to forward; warn and defer.
+
+    prepare_data drops such games before a run sees them, so this only guards
+    callers that invoke the helper directly.
+    """
+    with caplog.at_level(logging.WARNING):
+        matchup = _matchup_tuple({"winner": None, "loser": "B"})
+
+    assert matchup == (None, "B")
+    assert any("no recorded result" in record.message for record in caplog.records)
+
+
+def test_ratings_follow_recorded_results_even_when_the_comparison_function_disagrees():
+    """A non-trivial lambda must never decide ground truth for games with a winner.
+
+    The lambda always predicts the *second* competitor wins -- the exact opposite of
+    every recorded result. Rated through the lambda (the old behavior), the standings
+    would invert; rated on the records, they must follow who actually won.
+    """
+    calls = []
+
+    def predictor(a, b):
+        calls.append((a, b))
+        return False
+
+    arena = LambdaArena(predictor, base_competitor=EloCompetitor)
+    data = {
+        1: [
+            {"winner": "A", "loser": "B"},
+            {"winner": "A", "loser": "C"},
+            {"winner": "B", "loser": "C"},
+        ],
+        2: [
+            {"winner": "A", "loser": "B"},
+            {"winner": "A", "loser": "C"},
+            {"winner": "B", "loser": "C"},
+        ],
+    }
+
+    Backtest(arena).run_and_project(data)
+
+    # Ground truth was never consulted: every game has a recorded winner.
+    assert calls == []
+    ratings = {row["competitor"]: row["rating"] for row in arena.leaderboard()}
+    assert ratings["A"] > ratings["B"] > ratings["C"]
 
 
 def test_bet_history_is_empty_before_the_first_run():
@@ -740,3 +790,116 @@ def test_bet_history_records_a_failed_settlement_with_its_error():
     assert record["skipped_zero_stake"] is False
     assert record["error"] == "bookmaker unavailable"
     assert record["bankroll_after"] == 1000.0
+
+
+def test_stateful_strategy_receives_settled_results_mid_backtest():
+    """keeks strategies exposing record_result must see every settled bet.
+
+    DynamicBankrollManagement tracks a win/loss window that drives its streak and
+    volatility factors; with no notification it prices every bet from its empty
+    initial state forever. The caller's instance is notified even though each bet
+    is quoted by a freshly constructed re-priced copy.
+    """
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": None}],
+    }
+    strategy = DynamicBankrollManagement(base_fraction=0.2, payoff=1.0, loss=1.0, transaction_cost=0.0)
+    assert strategy.get_streak_factor() == 1.0  # nothing recorded yet
+
+    backtest = Backtest(StubArena())
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
+
+    # Exactly one bet settles: the loser side is unbettable (no valid odds), so the
+    # only candidate is the A-side win, on every supported keeks version. The win
+    # moves the streak factor off neutral.
+    assert len(strategy.results) == 1
+    assert strategy.results[0] > 0
+    assert strategy.get_streak_factor() > 1.0
+
+
+class ResultTrackingStrategy(FixedFractionStrategy):
+    """A fixed-fraction strategy that records the notifications it receives."""
+
+    def __init__(self, selected_probability):
+        super().__init__(selected_probability)
+        self.recorded = []
+
+    def record_result(self, won, return_pct=None):
+        self.recorded.append((won, return_pct))
+
+
+def test_record_result_receives_the_actual_return():
+    """The hook sees the bet's real economics: net profit over the pre-bet bankroll."""
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    strategy = ResultTrackingStrategy(0.75)
+
+    Backtest(StubArena()).run_explicit(
+        data,
+        strategy,
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    # 200.0 staked at +150 wins 300.0 on a 1000.0 bankroll.
+    assert strategy.recorded == [(True, pytest.approx(0.3))]
+
+
+def test_zero_stake_and_failed_settlements_notify_nothing():
+    """Only bets that moved money update the strategy's state."""
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+
+    # A stake that scales to zero settled nothing.
+    zero_stake_strategy = ResultTrackingStrategy(0.75)
+    Backtest(StubArena()).run_explicit(
+        data,
+        zero_stake_strategy,
+        BankRoll(initial_funds=1000.0, percent_bettable=0.0, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+    assert zero_stake_strategy.recorded == []
+
+    # A settlement that raised settled nothing.
+
+    class FailingBankRoll(BankRoll):
+        def bet(self, amount):
+            raise RuntimeError("bookmaker unavailable")
+
+    failing_strategy = ResultTrackingStrategy(0.75)
+    Backtest(StubArena()).run_explicit(
+        data,
+        failing_strategy,
+        FailingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+    assert failing_strategy.recorded == []
+
+
+def test_a_raising_record_result_hook_is_logged_and_skipped(caplog):
+    """A broken state hook must not corrupt the settled financial record or abort the run."""
+
+    class ExplodingHookStrategy(FixedFractionStrategy):
+        def record_result(self, won, return_pct=None):
+            raise RuntimeError("state tracking broken")
+
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    backtest = Backtest(StubArena())
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+
+    with caplog.at_level(logging.ERROR):
+        backtest.run_explicit(data, ExplodingHookStrategy(0.75), bankroll, period_to_start_betting=1)
+
+    # The bet itself settled truthfully before the hook ran.
+    assert backtest.bet_history[0]["stake"] == 200.0
+    assert backtest.bet_history[0]["bankroll_after"] == 1300.0
+    assert any("record_result" in record.message for record in caplog.records)

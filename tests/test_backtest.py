@@ -180,9 +180,9 @@ class TestBacktest:
 
         # 3. Check Arena Updates (Should happen for P1, P2, P3)
         assert mock_arena.tournament.call_count == 3
-        mock_arena.tournament.assert_any_call([("A", "B")])  # P1
-        mock_arena.tournament.assert_any_call([("C", "B")])  # P2
-        mock_arena.tournament.assert_any_call([("A", "C")])  # P3
+        mock_arena.tournament.assert_any_call([("A", "B", None, None, 1.0)])  # P1
+        mock_arena.tournament.assert_any_call([("C", "B", None, None, 1.0)])  # P2
+        mock_arena.tournament.assert_any_call([("A", "C", None, None, 1.0)])  # P3
 
     def test_run_explicit_no_odds(
         self, mock_arena, mock_strategy, mock_bankroll, mock_prepare_data, mock_calculate_probabilities
@@ -242,8 +242,8 @@ class TestBacktest:
         bt.run_explicit(data, mock_strategy, mock_bankroll, period_to_start_betting=0)
 
         assert mock_arena.tournament.call_args_list == [
-            mocker.call([("A", "B")]),
-            mocker.call([("C", "B")]),
+            mocker.call([("A", "B", None, None, 1.0)]),
+            mocker.call([("C", "B", None, None, 1.0)]),
         ]
         assert mock_calculate_probabilities.call_args_list == [
             mocker.call(mock_arena, data[3][0]),
@@ -266,9 +266,9 @@ class TestBacktest:
 
         # Check tournament calls for each period
         assert mock_arena.tournament.call_count == 3
-        mock_arena.tournament.assert_any_call([("A", "B")])
-        mock_arena.tournament.assert_any_call([("C", "B")])
-        mock_arena.tournament.assert_any_call([("A", "C")])
+        mock_arena.tournament.assert_any_call([("A", "B", None, None, 1.0)])
+        mock_arena.tournament.assert_any_call([("C", "B", None, None, 1.0)])
+        mock_arena.tournament.assert_any_call([("A", "C", None, None, 1.0)])
 
         # Check probability calculations for projections
         # Period 1 projects Period 2: C vs B
@@ -329,8 +329,8 @@ class TestBacktest:
         bt.run_and_project(data)
 
         assert mock_arena.tournament.call_args_list == [
-            mocker.call([("A", "B")]),
-            mocker.call([("C", "B")]),
+            mocker.call([("A", "B", None, None, 1.0)]),
+            mocker.call([("C", "B", None, None, 1.0)]),
         ]
         assert mock_calculate_probabilities.call_args_list == [
             mocker.call(mock_arena, data[3][0]),

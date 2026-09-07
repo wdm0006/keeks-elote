@@ -63,8 +63,9 @@ data = {
     # ... more periods ...
 }
 
-# The arena generates ratings/predictions. The lambda reports the outcome of a
-# matchup; since the data already records the winner, it is trivial here.
+# The arena generates ratings and predictions from the game records. Every game's
+# recorded winner is always forwarded to the ratings update, so the lambda is
+# never asked to decide a result the data already knows.
 arena = LambdaArena(lambda a, b: True, base_competitor=GlickoCompetitor)
 
 # The bankroll and a betting strategy from keeks.
@@ -90,6 +91,14 @@ and `bankroll_after`. Candidates that moved no money are recorded too, flagged w
 `skipped_zero_stake` or `error`, so every bet the run considered is accounted for. The
 list is cleared at the start of each `run_explicit` call, so reusing a `Backtest` never
 mixes two runs. Aggregations such as ROI or hit rate are one line of caller code over it.
+
+Strategies that maintain state through keeks' `record_result(won, return_pct)` hook --
+`DynamicBankrollManagement`'s streak and volatility windows, for example -- are notified
+of every bet the run actually settles, so their sizing adapts as the backtest progresses.
+Strategies without the hook are unaffected, and stateful strategies are always notified
+on the instance you passed in, even when each bet is priced by a freshly constructed
+re-priced copy. The notification is skipped for candidates that moved no money (a zero
+stake or a failed settlement), since there is no settled result to record.
 
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
 college-football data.
