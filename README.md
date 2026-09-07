@@ -84,13 +84,20 @@ print(len(backtest.bet_history))
 ```
 
 The closing `total_funds` conflates hit rate, stake sizing and how many bets were even
-placed, so `run_explicit` also fills `Backtest.bet_history`: one dict per settled wager
-carrying `period`, `label`, `opponent`, `fraction`, the `stake` actually placed (after the
-period's exposure scaling and any clamp against bettable funds), `payoff`, `won`, `profit`
-and `bankroll_after`. Candidates that moved no money are recorded too, flagged with
-`skipped_zero_stake` or `error`, so every bet the run considered is accounted for. The
-list is cleared at the start of each `run_explicit` call, so reusing a `Backtest` never
-mixes two runs. Aggregations such as ROI or hit rate are one line of caller code over it.
+placed, so `run_explicit` also fills `Backtest.bet_history`: one dict per wager the run
+considered, settled or not, carrying `period`, `label`, `opponent`, `fraction`, the
+`stake` actually placed (after the period's exposure scaling and any clamp against
+bettable funds), `payoff`, `won`, `profit` and `bankroll_after`. Candidates that moved
+no money are recorded too, flagged with `skipped_zero_stake` or `error`, so every bet
+the run considered is accounted for. The list is cleared at the start of each
+`run_explicit` call, so reusing a `Backtest` never mixes two runs. Aggregations such as
+ROI or hit rate are one line of caller code over it.
+
+Failures are part of that accounting: a strategy that raises while pricing a candidate
+is recorded the moment it fails (`fraction` of `None` plus the error message), and
+`Backtest.run_summary()` condenses the ledger into counts -- placed, failed with their
+reasons, skipped, wins/losses and net profit -- so a systematically broken strategy
+reads as `failed_bets: N`, never as an empty, plausible-looking run.
 
 Strategies that maintain state through keeks' `record_result(won, return_pct)` hook --
 `DynamicBankrollManagement`'s streak and volatility windows, for example -- are notified

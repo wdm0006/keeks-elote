@@ -3,6 +3,7 @@ import inspect
 import logging
 import math
 import numbers
+from collections import Counter
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from keeks.bankroll import BankRoll
@@ -225,6 +226,32 @@ def _record_result_on_strategy(
         )
 
 
+def summarize_bet_history(bet_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Summarizes a bet history into the counts a run summary reports.
+
+    Pure function over the record schema ``run_explicit`` documents, so the summary
+    and any caller-side aggregation agree on the definitions: a placed bet moved
+    money and settled; a failed bet is any candidate with an ``error`` (an evaluation
+    the strategy could not price, or a settlement that raised); a skipped candidate
+    quoted a stake that scaled or clamped to zero. Failure reasons are counted by
+    error message, in first-seen order.
+    """
+    placed = [record for record in bet_history if record["stake"] > 0 and record["error"] is None]
+    failed = [record for record in bet_history if record["error"] is not None]
+    skipped = [record for record in bet_history if record["skipped_zero_stake"] and record["error"] is None]
+    failure_reasons = Counter(record["error"] for record in failed)
+    return {
+        "total_candidates": len(bet_history),
+        "placed_bets": len(placed),
+        "failed_bets": len(failed),
+        "failure_reasons": dict(failure_reasons),
+        "skipped_zero_stake": len(skipped),
+        "wins": sum(1 for record in placed if record["won"]),
+        "losses": sum(1 for record in placed if not record["won"]),
+        "net_profit": float(sum(record["profit"] for record in bet_history)),
+    }
+
+
 class Backtest:
     """Runs backtests for betting strategies using an elote Arena for ratings.
 
@@ -256,8 +283,15 @@ class Backtest:
         bankroll: BankRoll,
         next_period_games: List[Dict[str, Any]],
         price_bets_at_true_odds: bool,
+        next_period_number: Optional[int],
     ) -> List[Dict[str, Any]]:
-        """Evaluates potential bets for a given list of games."""
+        """Evaluates potential bets for a given list of games.
+
+        Candidates the strategy cannot price are recorded on ``bet_history`` as
+        failed evaluations (see :meth:`_record_failed_evaluation`) rather than
+        vanishing behind a log line; ``next_period_number`` names the period the
+        candidates would have settled in.
+        """
         bets_calculated = []
         logger.debug(f"Evaluating {len(next_period_games)} games for betting opportunities.")
         for game in next_period_games:
@@ -307,6 +341,15 @@ class Backtest:
                             )
                     except Exception as e:
                         logger.error(f"Error evaluating bet on {winner_label}: {e}")
+                        self._record_failed_evaluation(
+                            period=next_period_number,
+                            label=winner_label,
+                            opponent=loser_label,
+                            payoff=decimal_odds_winner - 1.0,
+                            would_win=True,
+                            error_message=str(e),
+                            bankroll=bankroll,
+                        )
 
                 # Evaluate betting on the nominal loser
                 decimal_odds_loser = (
@@ -340,11 +383,55 @@ class Backtest:
                             )
                     except Exception as e:
                         logger.error(f"Error evaluating bet on {loser_label}: {e}")
+                        self._record_failed_evaluation(
+                            period=next_period_number,
+                            label=loser_label,
+                            opponent=winner_label,
+                            payoff=decimal_odds_loser - 1.0,
+                            would_win=False,
+                            error_message=str(e),
+                            bankroll=bankroll,
+                        )
             else:
                 logger.debug(
                     f"Skipping game {game.get('winner')} vs {game.get('loser')} for opportunities (missing odds or labels)."
                 )
         return bets_calculated
+
+    def _record_failed_evaluation(
+        self,
+        period: Optional[int],
+        label: Any,
+        opponent: Any,
+        payoff: float,
+        would_win: bool,
+        error_message: str,
+        bankroll: BankRoll,
+    ) -> None:
+        """Records a candidate the strategy could not price, next to the settled bets.
+
+        Failed evaluations join ``bet_history`` with ``fraction`` of ``None`` (no
+        stake was ever quoted) and the error message, so a strategy that raises on
+        every bet leaves a ledger of failures and a ``failed_bets`` count in the run
+        summary instead of an empty, plausible-looking run. The record is kept even
+        when the candidate's period is not a betting period: the failure is a
+        property of the strategy, not of the schedule.
+        """
+        self.bet_history.append(
+            {
+                "period": period,
+                "label": label,
+                "opponent": opponent,
+                "fraction": None,
+                "stake": 0.0,
+                "payoff": payoff,
+                "won": would_win,
+                "profit": 0.0,
+                "bankroll_after": bankroll.total_funds,
+                "skipped_zero_stake": False,
+                "error": error_message,
+            }
+        )
 
     def _execute_bets_for_current_period(
         self,
@@ -449,6 +536,21 @@ class Backtest:
                 _record_result_on_strategy(strategy, bet["actual_outcome"], profit, bankroll_before)
         logger.info(f"End of period {period_number} betting. Bankroll: {bankroll.total_funds:.2f}")
 
+    def run_summary(self) -> Dict[str, Any]:
+        """Condenses ``bet_history`` into the run's headline counts.
+
+        ``total_candidates`` covers every candidate the run considered;
+        ``placed_bets`` moved money and settled; ``failed_bets`` counts candidates
+        with an ``error`` -- an evaluation the strategy could not price, or a
+        settlement that raised -- and ``failure_reasons`` maps each error message to
+        its count; ``skipped_zero_stake`` counts stakes that scaled or clamped to
+        zero; ``wins``/``losses`` cover the placed bets; ``net_profit`` is the sum of
+        the ledger's profits. ``run_explicit`` clears ``bet_history`` at its start,
+        so after a run this describes exactly that run; before any run it is all
+        zeros.
+        """
+        return summarize_bet_history(self.bet_history)
+
     def run_explicit(
         self,
         data: Dict[int, List[Dict[str, Any]]],
@@ -496,11 +598,13 @@ class Backtest:
         appends to a previous run's records. Each entry is a dict with:
 
         ``period``
-            The period the bet settled in (one after the period it was priced in).
+            The period the bet settled in (one after the period it was priced in);
+            for a failed evaluation, the period the candidate would have settled in.
         ``label`` / ``opponent``
             The competitor backed and the other side of the game.
         ``fraction``
-            The stake fraction the strategy quoted.
+            The stake fraction the strategy quoted, or ``None`` when it raised
+            before quoting one.
         ``stake``
             The amount actually staked, after the period's exposure scaling and after
             the residual clamp against live ``bettable_funds``.
@@ -513,10 +617,19 @@ class Backtest:
         ``bankroll_after``
             ``bankroll.total_funds`` once this bet had settled.
         ``skipped_zero_stake`` / ``error``
-            Flags for the two candidates that moved no money: a stake that scaled or
-            clamped to zero, and a settlement that raised (the message is recorded).
-            Both carry ``stake`` and ``profit`` of ``0.0``, so every candidate the run
-            considered is accounted for rather than silently omitted.
+            Flags for the candidates that moved no money: a stake that scaled or
+            clamped to zero, a settlement that raised, and an evaluation the strategy
+            could not price. An evaluation failure is recorded the moment the strategy
+            raises -- with ``fraction`` of ``None``, since no stake was ever quoted --
+            so a strategy that fails on every bet produces a ledger of failed
+            candidates and a non-zero ``failed_bets`` count in :meth:`run_summary`
+            rather than an empty, plausible-looking run. All of them carry ``stake``
+            and ``profit`` of ``0.0``, so every candidate the run considered is
+            accounted for rather than silently omitted.
+
+        :meth:`run_summary` condenses the ledger into counts -- placed, failed (with
+        the reasons), skipped for a zero stake, wins, losses and net profit -- and the
+        headline counts are logged when the run finishes.
         """
         logger.info("Starting explicit backtest run.")
         self.bet_history = []
@@ -557,6 +670,7 @@ class Backtest:
                 bankroll,
                 next_period_games,
                 price_bets_at_true_odds,
+                next_period_number=next_period_key,
             )
 
             if not is_betting_period:
@@ -567,7 +681,13 @@ class Backtest:
             # Store calculated bets for the next iteration
             bets_calculated_prev_period = bets_calculated_this_period
 
-        logger.info("Explicit backtest run finished.")
+        summary = self.run_summary()
+        logger.info(
+            "Explicit backtest run finished: %d bets placed, %d failed, %d skipped for a zero stake.",
+            summary["placed_bets"],
+            summary["failed_bets"],
+            summary["skipped_zero_stake"],
+        )
         return bankroll  # Return the updated bankroll object
 
     def run_and_project(self, data: Dict[int, List[Dict[str, Any]]]):
