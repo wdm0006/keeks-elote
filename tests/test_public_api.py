@@ -19,8 +19,12 @@ PINNED_SURFACE = [
     "american_to_decimal",
     "calculate_probabilities",
     "create_arena",
+    "edge",
+    "pnl",
     "prepare_data",
+    "roi",
     "summarize_bet_history",
+    "to_decimal",
 ]
 
 
@@ -39,6 +43,10 @@ def test_reexports_are_the_source_objects():
     assert keeks_elote.Backtest is backtest.Backtest
     assert keeks_elote.american_to_decimal is backtest.american_to_decimal
     assert keeks_elote.summarize_bet_history is backtest.summarize_bet_history
+    assert keeks_elote.edge is backtest.edge
+    assert keeks_elote.pnl is backtest.pnl
+    assert keeks_elote.roi is backtest.roi
+    assert keeks_elote.to_decimal is backtest.to_decimal
     assert keeks_elote.prepare_data is data_handling.prepare_data
     assert keeks_elote.calculate_probabilities is model_evaluation.calculate_probabilities
     assert keeks_elote.create_arena is arena_factory.create_arena

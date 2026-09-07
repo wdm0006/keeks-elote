@@ -45,7 +45,9 @@ The core idea is to use `elote` to generate ratings and predictions based on his
 
 You provide historical outcomes as a `Dict[int, List[dict]]` keyed by period (e.g. week).
 Each game dict needs `winner` and `loser` labels, plus optional `winner_odds`/`loser_odds`
-in **American** odds (bets are only placed on games that include odds):
+in **American or decimal** odds -- the format is detected per price (American when negative
+or at least 100 in magnitude, decimal otherwise) -- and bets are only placed on games that
+include odds:
 
 ```python
 from keeks.bankroll import BankRoll
@@ -88,8 +90,10 @@ considered, settled or not, carrying `period`, `label`, `opponent`, `fraction`, 
 bettable funds), `payoff`, `won`, `profit` and `bankroll_after`. Candidates that moved
 no money are recorded too, flagged with `skipped_zero_stake` or `error`, so every bet
 the run considered is accounted for. The list is cleared at the start of each
-`run_explicit` call, so reusing a `Backtest` never mixes two runs. Aggregations such as
-ROI or hit rate are one line of caller code over it.
+`run_explicit` call, so reusing a `Backtest` never mixes two runs. Aggregations ship with
+the package: `pnl(bet_history)` nets the run's profit and `roi(bet_history)` reports it per
+unit staked, and anything more specific (hit rate, drawdown) stays one line of caller code
+over the ledger.
 
 Failures are part of that accounting: a strategy that raises while pricing a candidate
 is recorded the moment it fails (`fraction` of `None` plus the error message), and
@@ -124,8 +128,26 @@ An unknown name raises a `ValueError` listing the supported ones. The package
 root also re-exports the functions the backtest itself runs on, so a single
 import covers the whole flow: `prepare_data` (validates and cleans period-keyed
 input), `calculate_probabilities` (win probability from the arena),
-`american_to_decimal` (odds conversion), and `summarize_bet_history` (the ledger
-aggregation behind `run_summary()`).
+`to_decimal` (either-format odds conversion, with `american_to_decimal` for
+American-only input), `edge` (expected value per unit staked), `pnl`/`roi`
+(ledger profit and per-unit-staked return), and `summarize_bet_history` (the
+ledger aggregation behind `run_summary()`).
+
+### Odds formats and value metrics
+
+Game records accept prices in either format, and `to_decimal` converts any price explicitly:
+a negative price or one of magnitude 100 or more is read as American, anything from 1.0 up
+to 100 as decimal. `edge` prices a wager's expected value per unit staked -- the comparison
+between the model's win probability and the odds-implied one -- and `pnl`/`roi` net a
+`bet_history` ledger into its profit and per-unit-staked return.
+
+```python
+from keeks_elote import edge, to_decimal
+
+to_decimal(-110)   # 1.909... -- American
+to_decimal(1.91)   # 1.91     -- decimal
+edge(0.5, 2.1)     # 0.05 -- a half chance at 2.1 wins 5% per unit staked
+```
 
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
 college-football data.

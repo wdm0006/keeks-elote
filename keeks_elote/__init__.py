@@ -3,7 +3,15 @@
 import logging
 
 from keeks_elote.arena_factory import create_arena
-from keeks_elote.backtest import Backtest, american_to_decimal, summarize_bet_history
+from keeks_elote.backtest import (
+    Backtest,
+    american_to_decimal,
+    edge,
+    pnl,
+    roi,
+    summarize_bet_history,
+    to_decimal,
+)
 from keeks_elote.data_handling import prepare_data
 from keeks_elote.model_evaluation import calculate_probabilities
 from keeks_elote.rating_arena import RatingArena
@@ -22,6 +30,10 @@ __all__ = [
     "american_to_decimal",
     "calculate_probabilities",
     "create_arena",
+    "edge",
+    "pnl",
     "prepare_data",
+    "roi",
     "summarize_bet_history",
+    "to_decimal",
 ]

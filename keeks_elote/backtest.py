@@ -86,6 +86,9 @@ def american_to_decimal(american_odds: Any) -> float:
     :raises ValueError: If the value is zero or non-finite.
     :return: The equivalent decimal odds.
     :rtype: float
+
+    Odds that may already be decimal should go through :func:`to_decimal`,
+    which detects the format instead of assuming American.
     """
     if isinstance(american_odds, bool) or not isinstance(american_odds, numbers.Real):
         raise TypeError(f"American odds must be a real number, got {american_odds!r}")
@@ -106,12 +109,105 @@ def american_to_decimal(american_odds: Any) -> float:
         return (100.0 / abs(odds)) + 1.0
 
 
-def _decimal_odds_for_side(american_odds: Any, label: Any) -> Optional[float]:
-    """Converts one side's odds, warning and returning ``None`` when they are invalid."""
+def to_decimal(odds: Any) -> float:
+    """Converts odds in either American or decimal format to decimal odds.
+
+    The two formats' practical ranges barely overlap, so the format is read off
+    the value:
+
+    * negative values are American (decimal odds never pay less than the stake);
+    * values of 100 or greater are American (decimal odds that long imply a win
+      probability of 1% or less, and bookmakers quote those prices in American
+      format anyway);
+    * values from 1.0 up to (not including) 100 are decimal;
+    * values strictly between 0 and 1.0 fit neither format and are rejected.
+
+    The rule's soft spot is real but narrow: American prices strictly between 0
+    and +100 are never quoted (the format pivots at +/-100, and vig pushes every
+    real price's magnitude to 100 or beyond). A caller holding such a value
+    should convert it explicitly with :func:`american_to_decimal` rather than
+    rely on detection.
+
+    :param odds: A finite, non-zero real number in either format. Booleans,
+                 numeric strings and other non-real values are rejected rather
+                 than converted.
+    :raises TypeError: If the value is not a real number.
+    :raises ValueError: If the value is zero, non-finite, or between 0 and 1.0.
+    :return: The equivalent decimal odds.
+    :rtype: float
+    """
+    if isinstance(odds, bool) or not isinstance(odds, numbers.Real):
+        raise TypeError(f"Odds must be a real number, got {odds!r}")
+
     try:
-        return american_to_decimal(american_odds)
+        value = float(odds)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError(f"Odds must be representable as a float, got {odds!r}") from exc
+
+    if not math.isfinite(value):
+        raise ValueError(f"Odds must be finite, got {odds!r}")
+    if value == 0:
+        raise ValueError(f"Odds must be non-zero, got {odds!r}")
+    if 0 < value < 1.0:
+        raise ValueError(
+            f"Odds {odds!r} fit neither format: decimal odds never fall below 1.0, and American "
+            "prices between 0 and +100 do not occur. Convert explicitly with american_to_decimal "
+            "if this value is meant as American."
+        )
+    if value < 0 or value >= 100.0:
+        return american_to_decimal(value)
+    return value
+
+
+def edge(probability: float, decimal_odds: float) -> float:
+    """Computes a wager's expected value per unit staked.
+
+    ``edge(p, d)`` answers what one staked unit returns on average when the
+    wager wins with probability ``p`` at decimal odds ``d``: the
+    probability-weighted win, ``p * (d - 1)``, less the probability-weighted
+    loss, ``(1 - p)``. The two collapse to ``p * d - 1``, so the edge is
+    positive exactly when the model's probability implies the price understates
+    the true chance -- the situation positive-stake strategies size up for --
+    and exactly zero at the break-even price ``d = 1 / p``. For example,
+    ``edge(0.5, 2.1)`` is ``0.05``: a half chance at 2.1 wins five cents per
+    unit staked on average.
+
+    :param probability: The model's win probability, a finite number in ``[0, 1]``.
+    :param decimal_odds: The price as decimal odds, a finite number >= 1.0.
+                         American prices should be converted first
+                         (:func:`to_decimal` accepts either format).
+    :raises TypeError: If either argument is not a real number.
+    :raises ValueError: If ``probability`` falls outside ``[0, 1]``,
+                        ``decimal_odds`` is below 1.0, or either argument is
+                        non-finite.
+    :return: The expected value per unit staked.
+    :rtype: float
+    """
+    if isinstance(probability, bool) or not isinstance(probability, numbers.Real):
+        raise TypeError(f"Probability must be a real number, got {probability!r}")
+    prob = float(probability)
+    if not math.isfinite(prob):
+        raise ValueError(f"Probability must be finite, got {probability!r}")
+    if not 0.0 <= prob <= 1.0:
+        raise ValueError(f"Probability must be within [0, 1], got {probability!r}")
+
+    if isinstance(decimal_odds, bool) or not isinstance(decimal_odds, numbers.Real):
+        raise TypeError(f"Decimal odds must be a real number, got {decimal_odds!r}")
+    odds = float(decimal_odds)
+    if not math.isfinite(odds):
+        raise ValueError(f"Decimal odds must be finite, got {decimal_odds!r}")
+    if odds < 1.0:
+        raise ValueError(f"Decimal odds must be at least 1.0, got {decimal_odds!r}")
+
+    return prob * (odds - 1.0) - (1.0 - prob)
+
+
+def _decimal_odds_for_side(odds: Any, label: Any) -> Optional[float]:
+    """Converts one side's odds (either format), warning and returning ``None`` when they are invalid."""
+    try:
+        return to_decimal(odds)
     except (TypeError, ValueError) as exc:
-        logger.warning(f"Skipping wager on {label} due to invalid odds {american_odds!r}: {exc}")
+        logger.warning(f"Skipping wager on {label} due to invalid odds {odds!r}: {exc}")
         return None
 
 
@@ -253,6 +349,43 @@ def summarize_bet_history(bet_history: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def pnl(bet_history: List[Dict[str, Any]]) -> float:
+    """Computes the net profit of a ledger of bets.
+
+    Sums the ``profit`` field over every record -- placed bets carry their
+    settled profit, and candidates that moved no money (failed evaluations,
+    zero-stake skips) carry ``0.0`` -- so the ledger's whole book is netted
+    without special-casing. Agrees with
+    ``summarize_bet_history(bet_history)["net_profit"]``.
+
+    :param bet_history: Records shaped like ``Backtest.bet_history`` entries.
+    :return: The net profit across the ledger.
+    :rtype: float
+    """
+    return float(sum(record["profit"] for record in bet_history))
+
+
+def roi(bet_history: List[Dict[str, Any]]) -> float:
+    """Computes the return on investment of a ledger of bets.
+
+    The ledger's net profit (:func:`pnl`) over the total amount staked -- the
+    per-unit-staked return, where ``0.06`` means every staked unit came back
+    with six cents of profit. The denominator sums the ``stake`` field over
+    every record, so only money that actually moved counts: failed evaluations
+    and zero-stake candidates carry ``stake`` of ``0.0`` and cannot distort it.
+    A ledger with nothing staked has no return to measure and reports ``0.0``
+    rather than dividing by zero.
+
+    :param bet_history: Records shaped like ``Backtest.bet_history`` entries.
+    :return: Profit per unit staked; ``0.0`` when no money was staked.
+    :rtype: float
+    """
+    staked = float(sum(record["stake"] for record in bet_history))
+    if staked <= 0.0:
+        return 0.0
+    return pnl(bet_history) / staked
+
+
 class Backtest:
     """Runs backtests for betting strategies using an elote Arena for ratings.
 
@@ -299,8 +432,8 @@ class Backtest:
             if "winner_odds" in game and "loser_odds" in game:
                 winner_label = game.get("winner")
                 loser_label = game.get("loser")
-                winner_odds_american = game.get("winner_odds")
-                loser_odds_american = game.get("loser_odds")
+                winner_odds = game.get("winner_odds")
+                loser_odds = game.get("loser_odds")
 
                 if winner_label is None or loser_label is None:
                     logger.warning(f"Skipping game due to missing labels: {game}")
@@ -312,9 +445,7 @@ class Backtest:
 
                 # Evaluate betting on the nominal winner
                 decimal_odds_winner = (
-                    _decimal_odds_for_side(winner_odds_american, winner_label)
-                    if winner_odds_american is not None
-                    else None
+                    _decimal_odds_for_side(winner_odds, winner_label) if winner_odds is not None else None
                 )
                 if decimal_odds_winner is not None:
                     try:
@@ -353,11 +484,7 @@ class Backtest:
                         )
 
                 # Evaluate betting on the nominal loser
-                decimal_odds_loser = (
-                    _decimal_odds_for_side(loser_odds_american, loser_label)
-                    if loser_odds_american is not None
-                    else None
-                )
+                decimal_odds_loser = _decimal_odds_for_side(loser_odds, loser_label) if loser_odds is not None else None
                 if decimal_odds_loser is not None:
                     try:
                         bet_strategy = _strategy_for_bet(
@@ -566,7 +693,10 @@ class Backtest:
         `current_bankroll`, then handles bankroll updates using the explicitly
         passed bankroll object.
 
-        Data format requires `winner_odds` and `loser_odds` to be American odds.
+        Games may carry ``winner_odds`` and ``loser_odds`` in either American or
+        decimal format: each price's format is detected per value (see
+        :func:`keeks_elote.backtest.to_decimal`), and bets are only placed on
+        games that include odds.
 
         :param data: Historical game data keyed by period.
         :type data: Dict[int, List[GameRecord]]
@@ -630,7 +760,9 @@ class Backtest:
 
         :meth:`run_summary` condenses the ledger into counts -- placed, failed (with
         the reasons), skipped for a zero stake, wins, losses and net profit -- and the
-        headline counts are logged when the run finishes.
+        headline counts are logged when the run finishes. The :func:`pnl` and
+        :func:`roi` helpers net the same ledger into a single profit or
+        per-unit-staked figure.
         """
         logger.info("Starting explicit backtest run.")
         self.bet_history = []

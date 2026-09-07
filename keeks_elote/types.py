@@ -22,8 +22,10 @@ class GameRecord(_GameRecordRequired, total=False):
 
     ``winner``/``loser`` are the recorded labels -- the first names the side that
     won -- and are the only required keys. The optional keys are consumed when
-    present: ``winner_odds``/``loser_odds`` are American odds and drive bet pricing,
-    while ``winner_score``/``loser_score`` feed the margin-aware rating systems
+    present: ``winner_odds``/``loser_odds`` are prices in either American or
+    decimal format (detected per value; see
+    :func:`keeks_elote.backtest.to_decimal`) and drive bet pricing, while
+    ``winner_score``/``loser_score`` feed the margin-aware rating systems
     (Massey, Keener, Pythagorean) through the matchup tuple's score pair.
 
     The runtime parser is deliberately lenient with those optional values:
