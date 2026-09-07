@@ -15,8 +15,8 @@ __pycache__
 *.zip
 .coverage
 .ruff_cache
+.venv
 .mypy_cache
 .pytest_cache
 .DS_Store
 .coverage*
-uv.lock

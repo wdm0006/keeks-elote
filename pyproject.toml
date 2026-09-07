@@ -22,8 +22,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
-    "keeks>=0.3.0",
-    "elote>=1.2.0",
+    "keeks>=0.3.0,<0.8",
+    "elote>=1.2.0,<1.4",
 ]
 
 [project.optional-dependencies]

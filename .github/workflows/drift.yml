@@ -1,0 +1,124 @@
+name: Dependency Drift
+
+# Detects upstream drift: installs keeks and elote from their git default
+# branches and runs the suite. A red run means an upstream change broke this
+# integration layer — pin tighter in pyproject.toml or adapt the code.
+on:
+  schedule:
+    # Weekly, Mondays 03:00 UTC.
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/drift.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Each variant overrides one dependency (or both) from its git default
+      # branch, so a failure names the dependency that drifted.
+      matrix:
+        variant:
+          - keeks-main
+          - elote-main
+          - both-main
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Create virtual environment
+        run: uv venv --python 3.10
+
+      # --locked fails loudly if pyproject.toml and uv.lock disagree.
+      - name: Install locked baseline
+        run: uv sync --locked
+
+      - name: Install test tooling
+        run: uv pip install pytest pytest-mock
+
+      - name: Override ${{ matrix.variant }} from git default branch
+        run: |
+          case "${{ matrix.variant }}" in
+            keeks-main)
+              PKGS=("keeks @ git+https://github.com/wdm0006/keeks.git")
+              ;;
+            elote-main)
+              PKGS=("elote @ git+https://github.com/wdm0006/elote.git")
+              ;;
+            both-main)
+              PKGS=("keeks @ git+https://github.com/wdm0006/keeks.git" "elote @ git+https://github.com/wdm0006/elote.git")
+              ;;
+          esac
+          # --refresh bypasses uv's git cache so the branch tip is re-resolved
+          # on every run; a cached resolution would hide drift.
+          uv pip install --refresh --reinstall "${PKGS[@]}"
+
+      - name: Record resolved sources
+        run: |
+          .venv/bin/python - <<'EOF' | tee resolved-sources.txt
+          import json
+          import importlib.metadata as im
+
+          for dist in ("keeks", "elote"):
+              d = im.distribution(dist)
+              direct_url = d.read_text("direct_url.json")
+              if direct_url:
+                  info = json.loads(direct_url)
+                  commit = (info.get("vcs_info") or {}).get("commit", "?")
+                  print(f"{dist} {d.version} <- {info.get('url', '?')} @ {commit}")
+              else:
+                  print(f"{dist} {d.version} <- locked release")
+          EOF
+
+      - name: Run tests against ${{ matrix.variant }}
+        # --no-sync keeps uv from re-syncing the environment back to the lock
+        # and undoing the git-branch overrides installed above.
+        run: |
+          set -o pipefail
+          uv run --no-sync pytest tests/ -q -rf --color=no 2>&1 | tee pytest-drift.log
+
+      - name: Fail loudly on drift
+        if: failure()
+        run: |
+          {
+            echo "## Dependency drift detected: \`${{ matrix.variant }}\`"
+            echo ""
+            echo "The keeks-elote suite fails when installed against upstream git default branches."
+            echo ""
+            echo "### Resolved sources tested"
+            echo '```'
+            cat resolved-sources.txt
+            echo '```'
+            echo ""
+            echo "### Failing tests"
+            echo '```'
+            grep -E '^(FAILED|ERROR) ' pytest-drift.log || echo "(no per-test lines captured — see the full job log)"
+            echo '```'
+            echo ""
+            echo "An upstream API or behavior change broke this integration layer."
+            echo "Pin the offending dependency tighter in pyproject.toml, or adapt keeks-elote, then re-lock."
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E '^(FAILED|ERROR) ' pytest-drift.log | while IFS= read -r line; do
+            echo "::error title=Dependency drift (${{ matrix.variant }})::$line"
+          done
