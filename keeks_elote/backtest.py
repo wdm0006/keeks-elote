@@ -4,7 +4,7 @@ import logging
 import math
 import numbers
 from collections import Counter
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies.base import BaseStrategy
@@ -12,12 +12,13 @@ from keeks.binary_strategies.base import BaseStrategy
 from keeks_elote.data_handling import prepare_data
 from keeks_elote.model_evaluation import calculate_probabilities
 from keeks_elote.rating_arena import RatingArena
+from keeks_elote.types import GameRecord, MatchupTuple, ProjectionRecord
 
 logger = logging.getLogger(__name__)
 
 
 # Helper to convert American odds to decimal odds
-def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
+def _matchup_tuple(game: GameRecord) -> MatchupTuple:
     """Builds the arena matchup tuple for a settled game, pinning the recorded result.
 
     The record names the winner, so the outcome is always forwarded as ``1.0`` from the
@@ -281,7 +282,7 @@ class Backtest:
         self,
         strategy: BaseStrategy,
         bankroll: BankRoll,
-        next_period_games: List[Dict[str, Any]],
+        next_period_games: List[GameRecord],
         price_bets_at_true_odds: bool,
         next_period_number: Optional[int],
     ) -> List[Dict[str, Any]]:
@@ -553,7 +554,7 @@ class Backtest:
 
     def run_explicit(
         self,
-        data: Dict[int, List[Dict[str, Any]]],
+        data: Dict[int, List[GameRecord]],
         strategy: BaseStrategy,
         bankroll: BankRoll,
         period_to_start_betting: int = 3,
@@ -568,7 +569,7 @@ class Backtest:
         Data format requires `winner_odds` and `loser_odds` to be American odds.
 
         :param data: Historical game data keyed by period.
-        :type data: Dict[int, List[Dict[str, Any]]]
+        :type data: Dict[int, List[GameRecord]]
         :param strategy: An initialized betting strategy instance.
         :type strategy: BaseStrategy
         :param bankroll: An initialized keeks.bankroll.BankRoll instance.
@@ -690,7 +691,7 @@ class Backtest:
         )
         return bankroll  # Return the updated bankroll object
 
-    def run_and_project(self, data: Dict[int, List[Dict[str, Any]]]):
+    def run_and_project(self, data: Dict[int, List[GameRecord]]) -> List[ProjectionRecord]:
         """Runs a simulation focused on generating and logging future projections.
 
         This method iterates through historical periods, updating the arena ratings
@@ -704,12 +705,17 @@ class Backtest:
         are not used in this method.
 
         :param data: Historical game data keyed by period.
-        :type data: Dict[int, List[Dict[str, Any]]]
+        :type data: Dict[int, List[GameRecord]]
+        :return: One record per projected game -- the projected period, the model's
+            favored side, and its win probability (always >= 0.5) -- in schedule
+            order. The same predictions are also logged, for interactive use.
+        :rtype: List[ProjectionRecord]
         """
         logger.info("Starting projection run.")
         data = prepare_data(data)
         logger.debug(f"Prepared data keys (periods): {list(data.keys())}")
         period_keys = sorted(data)
+        projections: List[ProjectionRecord] = []
 
         for period_index, week_no in enumerate(period_keys):
             games = data[week_no]
@@ -738,10 +744,25 @@ class Backtest:
                 prob_win = calculate_probabilities(self._arena, game)
                 if prob_win > 0.5:
                     logger.info(f"Predicted {winner} over {loser}: {prob_win:.4f}")
-                    # print('Predicted %s over %s: %s' % (game.get('winner'), game.get('loser'), prob_win, )) # Replaced
+                    projections.append(
+                        {
+                            "period": projected_period,
+                            "predicted_winner": winner,
+                            "predicted_loser": loser,
+                            "probability": prob_win,
+                        }
+                    )
                 else:
                     # If prob_win <= 0.5, the model favors the listed 'loser'
                     logger.info(f"Predicted {loser} over {winner}: {1.0 - prob_win:.4f}")
-                    # print('Predicted %s over %s: %s' % (game.get('loser'), game.get('winner'), prob_win, )) # Incorrect output previously
+                    projections.append(
+                        {
+                            "period": projected_period,
+                            "predicted_winner": loser,
+                            "predicted_loser": winner,
+                            "probability": 1.0 - prob_win,
+                        }
+                    )
 
         logger.info("Projection run finished.")
+        return projections
