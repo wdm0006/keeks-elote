@@ -48,12 +48,10 @@ Each game dict needs `winner` and `loser` labels, plus optional `winner_odds`/`l
 in **American** odds (bets are only placed on games that include odds):
 
 ```python
-from elote.arenas.lambda_arena import LambdaArena
-from elote.competitors.glicko import GlickoCompetitor
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies.kelly import KellyCriterion
 
-from keeks_elote import Backtest
+from keeks_elote import Backtest, create_arena
 
 # Historical outcomes, keyed by period (e.g. week). Ratings update from the
 # known winner/loser; odds drive the simulated bets in later periods.
@@ -64,9 +62,9 @@ data = {
 }
 
 # The arena generates ratings and predictions from the game records. Every game's
-# recorded winner is always forwarded to the ratings update, so the lambda is
-# never asked to decide a result the data already knows.
-arena = LambdaArena(lambda a, b: True, base_competitor=GlickoCompetitor)
+# recorded winner is always forwarded to the ratings update, so the built-in
+# comparison function is never asked to decide a result the data already knows.
+arena = create_arena("glicko")
 
 # The bankroll and a betting strategy from keeks.
 bankroll = BankRoll(initial_funds=10000, percent_bettable=0.5, max_draw_down=1.0)
@@ -106,6 +104,28 @@ Strategies without the hook are unaffected, and stateful strategies are always n
 on the instance you passed in, even when each bet is priced by a freshly constructed
 re-priced copy. The notification is skipped for candidates that moved no money (a zero
 stake or a failed settlement), since there is no settled result to record.
+
+### The one-liner and the rest of the public surface
+
+`create_arena` maps a rating system's name to its elote competitor class, so the
+arena setup is one line. Supported names: `bradley-terry`, `colley`, `dwz`,
+`ecf`, `elo`, `glicko`, `glicko2`, `keener`, `massey`, `pythagorean`,
+`trueskill`, and `whr`. Keyword arguments flow through: `base_kwargs` configures
+the rating system's competitor (for example `{"initial_rating": 2100}`), and any
+other keyword argument (elote's `func`, `initial_state`) is forwarded to the arena.
+
+```python
+from keeks_elote import create_arena
+
+arena = create_arena("glicko")
+```
+
+An unknown name raises a `ValueError` listing the supported ones. The package
+root also re-exports the functions the backtest itself runs on, so a single
+import covers the whole flow: `prepare_data` (validates and cleans period-keyed
+input), `calculate_probabilities` (win probability from the arena),
+`american_to_decimal` (odds conversion), and `summarize_bet_history` (the ledger
+aggregation behind `run_summary()`).
 
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
 college-football data.
