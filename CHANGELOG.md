@@ -1,3 +1,36 @@
+v0.2.0
+======
+
+The first version published to PyPI — the v0.1.0 and v0.1.1 tags were cut but their trusted-publishing
+runs were rejected before upload, so everything since v0.1.0 ships in this one distribution. It carries
+the correctness fixes the release was gated on: no silent wrong stakes, no re-decided games, no silent
+failures.
+
+**Added:**
+ * `bet_history` records the wagers a backtest actually placed — the stake, the settled profit, and
+   the bankroll after settlement — so a run can be audited bet by bet.
+ * Failed strategy evaluations are recorded too: each failure lands in `bet_history` with its reason,
+   and `run_summary()` reports placed, failed, and skipped counts.
+ * The glue surface is typed against real contracts: game and matchup records, structured
+   projections, and exports from the package root. Integration tests run real elote arenas
+   (Massey, Keener, Pythagorean) instead of test doubles.
+ * Dependency governance: runtime bounds (`keeks>=0.3.0,<0.8`, `elote>=1.3.0,<1.4`), a committed
+   `uv.lock`, and a weekly drift workflow that installs keeks and elote from their git default
+   branches and runs the suite, attributing any failure to the dependency that drifted.
+
+**Fixed:**
+ * Every bet is priced through a freshly constructed strategy. Repricing through a shared instance
+   let stateful strategies carry state between pricing calls inside a period and quietly request
+   stakes they would never have asked for fresh.
+ * Games are rated on the result that was recorded, not re-decided by the rating system, and settled
+   outcomes are announced to stateful strategies — post-settlement state now agrees with what
+   actually happened.
+
+**Packaging:**
+ * The publish workflow declares a named `pypi` GitHub environment, giving the PyPI trusted
+   publisher a deterministic claim set. The earlier tag publishes failed as `invalid-publisher`
+   because no matching publisher was registered on PyPI.
+
 v0.1.1
 ======
 
