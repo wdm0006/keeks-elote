@@ -50,6 +50,10 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 120
+# Markdown stays out of the formatter: ruff 0.16 formats embedded code blocks in
+# .md files and its patcher has corrupted surrounding prose (word transpositions,
+# duplicated lines) on this repo's README. Docs are prose, not formatted source.
+extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "C", "I"]

@@ -40,7 +40,7 @@ Raw uv equivalents (what the Makefile runs): `uv venv .venv --python python3`,
 ## Codebase map
 
 See [codebase-map.md](codebase-map.md) for the folder-level table. In one line:
-`keeks_elote/` (the library; core logic in `backtest.py`), `tests/` (71 pytest tests),
+`keeks_elote/` (the library; core logic in `backtest.py`, the `create_arena` factory in `arena_factory.py`), `tests/` (124 pytest tests, the package root's surface pinned by `test_public_api.py`),
 `examples/` (CFB worked example + JSON data), `.github/workflows/` (CI matrix + PyPI publish).
 
 ## Local verification
