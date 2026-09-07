@@ -381,6 +381,12 @@ def test_american_to_decimal_rejects_non_real_odds(american_odds):
         american_to_decimal(american_odds)
 
 
+def test_american_to_decimal_rejects_an_unrepresentable_real():
+    """A real number too large to float is rejected, not truncated to infinity."""
+    with pytest.raises(ValueError, match="representable as a float"):
+        american_to_decimal(10**400)
+
+
 def test_invalid_odds_skip_only_that_side(caplog):
     """One unusable price must not cost the game its opposite wager or its rating update."""
     data = {
@@ -412,6 +418,27 @@ def test_invalid_odds_skip_only_that_side(caplog):
     assert len(invalid_odds_warnings) == 1
     assert "on B" in invalid_odds_warnings[0]
     assert "nan" in invalid_odds_warnings[0]
+
+
+def test_evaluation_skips_a_game_without_labels():
+    """A game with odds but no named competitors cannot be priced; it is skipped.
+
+    ``prepare_data`` drops unlabeled games before evaluation runs, so this guard is
+    only reachable when the helper is called directly; it is kept as a defensive
+    backstop for direct callers.
+    """
+    backtest = Backtest(StubArena())
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bets = backtest._evaluate_bets_for_next_period(
+        FixedFractionStrategy(0.75),
+        bankroll,
+        [{"winner": None, "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+        True,
+        next_period_number=2,
+    )
+
+    assert bets == []
+    assert backtest.bet_history == []
 
 
 def test_period_exposure_never_exceeds_the_bettable_budget():
@@ -903,3 +930,154 @@ def test_a_raising_record_result_hook_is_logged_and_skipped(caplog):
     assert backtest.bet_history[0]["stake"] == 200.0
     assert backtest.bet_history[0]["bankroll_after"] == 1300.0
     assert any("record_result" in record.message for record in caplog.records)
+
+
+class AlwaysRaisesStrategy:
+    """A strategy whose pricing explodes on every candidate."""
+
+    def __init__(self):
+        pass
+
+    def evaluate(self, probability, current_bankroll):
+        raise RuntimeError("strategy exploded")
+
+
+def test_an_always_raising_strategy_records_every_failed_evaluation():
+    """A candidate the strategy cannot price is recorded with its error, not dropped."""
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    backtest.run_explicit(
+        data,
+        AlwaysRaisesStrategy(),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    # Both sides of the game were priced, so both evaluations failed.
+    assert len(backtest.bet_history) == 2
+    winner_record, loser_record = backtest.bet_history
+    assert winner_record["period"] == 2
+    assert winner_record["label"] == "A"
+    assert winner_record["opponent"] == "B"
+    assert winner_record["fraction"] is None
+    assert winner_record["stake"] == 0.0
+    assert winner_record["payoff"] == pytest.approx(1.5)  # +150 American
+    assert winner_record["won"] is True
+    assert winner_record["profit"] == 0.0
+    assert winner_record["bankroll_after"] == 1000.0
+    assert winner_record["skipped_zero_stake"] is False
+    assert winner_record["error"] == "strategy exploded"
+
+    assert loser_record["period"] == 2
+    assert loser_record["label"] == "B"
+    assert loser_record["opponent"] == "A"
+    assert loser_record["fraction"] is None
+    assert loser_record["stake"] == 0.0
+    assert loser_record["payoff"] == pytest.approx(0.5)  # -200 American
+    assert loser_record["won"] is False
+    assert loser_record["error"] == "strategy exploded"
+
+
+def test_an_always_raising_strategy_reports_failed_bets_in_the_run_summary():
+    """The acceptance signal: a broken strategy reads as failed_bets=N, never as an empty run."""
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [
+            {"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200},
+            {"winner": "C", "loser": "D", "winner_odds": 120, "loser_odds": -150},
+        ],
+    }
+    backtest.run_explicit(
+        data,
+        AlwaysRaisesStrategy(),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    summary = backtest.run_summary()
+    assert summary["total_candidates"] == 4  # both sides of both games
+    assert summary["failed_bets"] == 4
+    assert summary["failure_reasons"] == {"strategy exploded": 4}
+    assert summary["placed_bets"] == 0
+    assert summary["skipped_zero_stake"] == 0
+    assert summary["wins"] == 0
+    assert summary["losses"] == 0
+    assert summary["net_profit"] == 0.0
+
+
+def test_the_run_summary_separates_placed_bets_from_failed_ones():
+    """A strategy that cannot price one side still places the other; the summary splits them."""
+
+    class RaisesOnFavorites:
+        def __init__(self):
+            pass
+
+        def evaluate(self, probability, current_bankroll):
+            if probability > 0.7:
+                raise RuntimeError("cannot price a favorite")
+            return 0.2
+
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    backtest.run_explicit(
+        data,
+        RaisesOnFavorites(),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        period_to_start_betting=1,
+    )
+
+    summary = backtest.run_summary()
+    assert summary["failed_bets"] == 1  # the A side (P=0.75) could not be priced
+    assert summary["failure_reasons"] == {"cannot price a favorite": 1}
+    assert summary["placed_bets"] == 1  # the B side (P=0.25) was quoted and settled
+    assert summary["wins"] == 0
+    assert summary["losses"] == 1  # B lost the game
+    assert summary["net_profit"] == pytest.approx(-200.0)  # 0.2 of 1000.0 staked, lost
+
+
+def test_the_run_summary_of_a_run_that_considered_nothing_is_all_zeros():
+    """The empty summary is a readable zero state, not a KeyError waiting to happen."""
+    backtest = Backtest(StubArena())
+    backtest.run_explicit(
+        {1: []},
+        FixedFractionStrategy(0.75),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+    )
+
+    assert backtest.run_summary() == {
+        "total_candidates": 0,
+        "placed_bets": 0,
+        "failed_bets": 0,
+        "failure_reasons": {},
+        "skipped_zero_stake": 0,
+        "wins": 0,
+        "losses": 0,
+        "net_profit": 0.0,
+    }
+
+
+def test_the_run_summary_is_logged_when_a_run_finishes(caplog):
+    """The end-of-run log carries the headline counts, not just the ledger."""
+    backtest = Backtest(StubArena())
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
+    }
+    with caplog.at_level(logging.INFO, logger="keeks_elote.backtest"):
+        backtest.run_explicit(
+            data,
+            AlwaysRaisesStrategy(),
+            BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+            period_to_start_betting=1,
+        )
+
+    finish_messages = [record.message for record in caplog.records if "finished" in record.message]
+    expected = "Explicit backtest run finished: 0 bets placed, 2 failed, 0 skipped for a zero stake."
+    assert finish_messages == [expected]
