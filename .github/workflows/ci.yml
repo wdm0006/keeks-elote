@@ -78,8 +78,10 @@ jobs:
       - name: Install test tooling at current versions
         run: uv pip install pytest pytest-mock pytest-cov
 
+      # --no-sync: plain `uv run` would re-sync this environment to the
+      # committed uv.lock and silently replace the lowest-direct floor pins.
       - name: Import the package
-        run: uv run python -c "import keeks_elote"
+        run: uv run --no-sync python -c "import keeks_elote"
 
       - name: Run tests
-        run: uv run pytest tests/
+        run: uv run --no-sync pytest tests/
