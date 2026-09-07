@@ -108,7 +108,7 @@ stake or a failed settlement), since there is no settled result to record.
 ### The one-liner and the rest of the public surface
 
 `create_arena` maps a rating system's name to its elote competitor class, so the
-arena setup is one line. Supported names: `bradley-terry`, `colley`, `dwl`,
+arena setup is one line. Supported names: `bradley-terry`, `colley`, `dwz`,
 `ecf`, `elo`, `glicko`, `glicko2`, `keener`, `massey`, `pythagorean`,
 `trueskill`, and `whr`. Keyword arguments flow through: `base_kwargs` configures
 the rating system's competitor (for example `{"initial_rating": 2100}`), and any

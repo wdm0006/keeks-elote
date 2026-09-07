@@ -54,7 +54,7 @@ def _first_competitor_wins(a: Any, b: Any) -> bool:
 RATING_SYSTEMS: Dict[str, Type[BaseCompetitor]] = {
     "bradley-terry": BradleyTerryCompetitor,
     "colley": ColleyMatrixCompetitor,
-    "dwl": DWZCompetitor,
+    "dwz": DWZCompetitor,
     "ecf": ECFCompetitor,
     "elo": EloCompetitor,
     "glicko": GlickoCompetitor,
@@ -75,7 +75,7 @@ def create_arena(
     """Builds a configured elote ``LambdaArena`` for a named rating system.
 
     :param rating_system: One of the names in :data:`RATING_SYSTEMS`
-        (``bradley-terry``, ``colley``, ``dwl``, ``ecf``, ``elo``, ``glicko``,
+        (``bradley-terry``, ``colley``, ``dwz``, ``ecf``, ``elo``, ``glicko``,
         ``glicko2``, ``keener``, ``massey``, ``pythagorean``, ``trueskill``,
         ``whr``). Defaults to ``"glicko"``.
     :type rating_system: str
