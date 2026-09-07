@@ -1,3 +1,19 @@
+Unreleased
+==========
+
+**Added:**
+ * `edge(probability, decimal_odds)` computes a wager's expected value per unit staked --
+   `p * (d - 1) - (1 - p)` -- so a model's win probability can be priced against the odds
+   directly (`edge(0.5, 2.1)` is `0.05`).
+ * `to_decimal(odds)` converts prices from either American or decimal format: a negative
+   price or one of magnitude 100 or more is read as American, a price from 1.0 up to 100 as
+   decimal, and a price that fits neither (between 0 and 1) is rejected. The backtest
+   pricing path now reads every `winner_odds`/`loser_odds` value through it, so game records
+   accept either format wherever American odds were accepted before; a price that fits
+   neither format is skipped with a warning instead of being priced as a tiny American odd.
+ * `pnl(bet_history)` and `roi(bet_history)` report a ledger's net profit and
+   per-unit-staked return alongside `summarize_bet_history`.
+
 v0.2.0
 ======
 
