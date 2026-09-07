@@ -20,6 +20,8 @@ PINNED_SURFACE = [
     "calculate_probabilities",
     "create_arena",
     "edge",
+    "load_csv",
+    "load_dataframe",
     "pnl",
     "prepare_data",
     "roi",
@@ -48,6 +50,8 @@ def test_reexports_are_the_source_objects():
     assert keeks_elote.roi is backtest.roi
     assert keeks_elote.to_decimal is backtest.to_decimal
     assert keeks_elote.prepare_data is data_handling.prepare_data
+    assert keeks_elote.load_csv is data_handling.load_csv
+    assert keeks_elote.load_dataframe is data_handling.load_dataframe
     assert keeks_elote.calculate_probabilities is model_evaluation.calculate_probabilities
     assert keeks_elote.create_arena is arena_factory.create_arena
     assert keeks_elote.RatingArena is rating_arena.RatingArena

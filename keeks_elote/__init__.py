@@ -12,7 +12,7 @@ from keeks_elote.backtest import (
     summarize_bet_history,
     to_decimal,
 )
-from keeks_elote.data_handling import prepare_data
+from keeks_elote.data_handling import load_csv, load_dataframe, prepare_data
 from keeks_elote.model_evaluation import calculate_probabilities
 from keeks_elote.rating_arena import RatingArena
 from keeks_elote.types import GameRecord, MatchupTuple, ProjectionRecord
@@ -31,6 +31,8 @@ __all__ = [
     "calculate_probabilities",
     "create_arena",
     "edge",
+    "load_csv",
+    "load_dataframe",
     "pnl",
     "prepare_data",
     "roi",
