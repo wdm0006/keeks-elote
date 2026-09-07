@@ -1,0 +1,5 @@
+period,date,winner,loser,winner_odds,loser_odds,winner_score,loser_score
+1,2023-08-11,Alpha,Beta,2.5,1.6,3,1
+1,2023-08-12,Gamma,Delta,1.9,1.95,,2
+2,2023-08-13,Beta,Gamma,,,,
+2,2023-08-19,Delta,Alpha,2.2,1.7,1,4
