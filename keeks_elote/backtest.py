@@ -17,18 +17,31 @@ logger = logging.getLogger(__name__)
 
 # Helper to convert American odds to decimal odds
 def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
-    """Build the arena matchup tuple for a settled game.
+    """Builds the arena matchup tuple for a settled game, pinning the recorded result.
 
-    Rating systems that model margin of victory (Massey, Keener, Pythagorean) need the
-    scores, not just who won. elote's ``tournament`` unpacks each tuple into ``matchup``,
-    whose signature is ``(a, b, attributes, match_time, outcome, scores)``, so a game
-    carrying ``winner_score`` and ``loser_score`` is forwarded with them and every other
-    game keeps the plain two-element form the win/loss systems expect.
+    The record names the winner, so the outcome is always forwarded as ``1.0`` from the
+    first competitor's perspective: the arena's comparison function predicts rather than
+    records, and a non-trivial one must never decide ground truth for a game that has a
+    recorded winner. Rating systems that model margin of victory (Massey, Keener,
+    Pythagorean) additionally need the scores, so a game carrying a usable
+    ``winner_score`` > ``loser_score`` is forwarded with them; elote's ``tournament``
+    unpacks each tuple into ``matchup``, whose signature is
+    ``(a, b, attributes, match_time, outcome, scores)``, and cross-checks the scores
+    against the outcome. A record with no winner/loser labels carries no result to
+    forward, so it falls back to the two-element comparison-function form (warned, and
+    unreachable after ``prepare_data``, which drops such games).
     """
     winner, loser = game.get("winner"), game.get("loser")
+    if winner is None or loser is None:
+        logger.warning(
+            "Game record %r carries no recorded result; deferring to the arena's comparison function.",
+            game,
+        )
+        return (winner, loser)
+
     winner_score, loser_score = game.get("winner_score"), game.get("loser_score")
     if winner_score is None or loser_score is None:
-        return (winner, loser)
+        return (winner, loser, None, None, 1.0)
     try:
         scores = (float(winner_score), float(loser_score))
     except (TypeError, ValueError):
@@ -39,7 +52,7 @@ def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
             winner,
             loser,
         )
-        return (winner, loser)
+        return (winner, loser, None, None, 1.0)
     if not scores[0] > scores[1]:
         # The row says this competitor won but the scores do not agree. A placeholder like
         # "0-0" for a score nobody recorded is the common case, and feeding it through as a
@@ -51,7 +64,7 @@ def _matchup_tuple(game: Dict[str, Any]) -> Tuple[Any, ...]:
             winner,
             loser,
         )
-        return (winner, loser)
+        return (winner, loser, None, None, 1.0)
 
     # Outcome is from the first competitor's perspective, and the first competitor is the
     # winner, so this is always 1.0. elote requires it alongside scores and cross-checks

@@ -1,12 +1,14 @@
 import logging
 
 import pytest
+from elote import EloCompetitor
+from elote.arenas.lambda_arena import LambdaArena
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies import KellyCriterion
 from keeks.binary_strategies.base import BaseStrategy
 
 from keeks_elote import Backtest
-from keeks_elote.backtest import _strategy_for_bet, american_to_decimal
+from keeks_elote.backtest import _matchup_tuple, _strategy_for_bet, american_to_decimal
 
 
 class StubArena:
@@ -400,7 +402,7 @@ def test_invalid_odds_skip_only_that_side(caplog):
     # A is staked 200.0 at +150 and settles as a winner.
     assert bankroll.bet_amounts == [200.0]
     assert bankroll.total_funds == 1300.0
-    assert ("A", "B") in arena.matchups
+    assert ("A", "B", None, None, 1.0) in arena.matchups
 
     invalid_odds_warnings = [
         record.message
@@ -483,8 +485,8 @@ def test_scores_are_forwarded_to_the_arena_when_present():
     assert arena.matchups == [("A", "B", None, None, 1.0, (31.0, 17.0))]
 
 
-def test_a_game_without_scores_keeps_the_plain_form():
-    """Win/loss systems must keep receiving two-element tuples."""
+def test_a_game_without_scores_pins_the_recorded_outcome():
+    """A score-less game still records who won; the arena's lambda must not decide it."""
     arena = RecordingArena()
     data = {1: [{"winner": "A", "loser": "B"}]}
     Backtest(arena).run_explicit(
@@ -494,11 +496,11 @@ def test_a_game_without_scores_keeps_the_plain_form():
         period_to_start_betting=1,
     )
 
-    assert arena.matchups == [("A", "B")]
+    assert arena.matchups == [("A", "B", None, None, 1.0)]
 
 
-def test_unparseable_scores_fall_back_to_the_plain_form(caplog):
-    """A malformed score must not take down the rating update."""
+def test_unparseable_scores_pin_the_recorded_outcome(caplog):
+    """A malformed score must not take down the rating update or unpin the result."""
     arena = RecordingArena()
     data = {1: [{"winner": "A", "loser": "B", "winner_score": "n/a", "loser_score": 17}]}
     with caplog.at_level(logging.WARNING):
@@ -509,11 +511,11 @@ def test_unparseable_scores_fall_back_to_the_plain_form(caplog):
             period_to_start_betting=1,
         )
 
-    assert arena.matchups == [("A", "B")]
+    assert arena.matchups == [("A", "B", None, None, 1.0)]
     assert any("unparseable scores" in record.message for record in caplog.records)
 
 
-def test_scores_that_contradict_the_result_fall_back_to_the_plain_form(caplog):
+def test_scores_that_contradict_the_result_pin_the_recorded_outcome(caplog):
     """A 0-0 placeholder must not be fed through as a real tie margin."""
     arena = RecordingArena()
     data = {1: [{"winner": "A", "loser": "B", "winner_score": 0, "loser_score": 0}]}
@@ -525,8 +527,56 @@ def test_scores_that_contradict_the_result_fall_back_to_the_plain_form(caplog):
             period_to_start_betting=1,
         )
 
-    assert arena.matchups == [("A", "B")]
+    assert arena.matchups == [("A", "B", None, None, 1.0)]
     assert any("do not show" in record.message for record in caplog.records)
+
+
+def test_a_game_without_labels_defers_to_the_comparison_function(caplog):
+    """A record with no winner carries no result to forward; warn and defer.
+
+    prepare_data drops such games before a run sees them, so this only guards
+    callers that invoke the helper directly.
+    """
+    with caplog.at_level(logging.WARNING):
+        matchup = _matchup_tuple({"winner": None, "loser": "B"})
+
+    assert matchup == (None, "B")
+    assert any("no recorded result" in record.message for record in caplog.records)
+
+
+def test_ratings_follow_recorded_results_even_when_the_comparison_function_disagrees():
+    """A non-trivial lambda must never decide ground truth for games with a winner.
+
+    The lambda always predicts the *second* competitor wins -- the exact opposite of
+    every recorded result. Rated through the lambda (the old behavior), the standings
+    would invert; rated on the records, they must follow who actually won.
+    """
+    calls = []
+
+    def predictor(a, b):
+        calls.append((a, b))
+        return False
+
+    arena = LambdaArena(predictor, base_competitor=EloCompetitor)
+    data = {
+        1: [
+            {"winner": "A", "loser": "B"},
+            {"winner": "A", "loser": "C"},
+            {"winner": "B", "loser": "C"},
+        ],
+        2: [
+            {"winner": "A", "loser": "B"},
+            {"winner": "A", "loser": "C"},
+            {"winner": "B", "loser": "C"},
+        ],
+    }
+
+    Backtest(arena).run_and_project(data)
+
+    # Ground truth was never consulted: every game has a recorded winner.
+    assert calls == []
+    ratings = {row["competitor"]: row["rating"] for row in arena.leaderboard()}
+    assert ratings["A"] > ratings["B"] > ratings["C"]
 
 
 def test_bet_history_is_empty_before_the_first_run():

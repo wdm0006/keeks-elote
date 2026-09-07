@@ -63,8 +63,9 @@ data = {
     # ... more periods ...
 }
 
-# The arena generates ratings/predictions. The lambda reports the outcome of a
-# matchup; since the data already records the winner, it is trivial here.
+# The arena generates ratings and predictions from the game records. Every game's
+# recorded winner is always forwarded to the ratings update, so the lambda is
+# never asked to decide a result the data already knows.
 arena = LambdaArena(lambda a, b: True, base_competitor=GlickoCompetitor)
 
 # The bankroll and a betting strategy from keeks.
