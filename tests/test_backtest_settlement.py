@@ -3,9 +3,10 @@ import logging
 import pytest
 from keeks.bankroll import BankRoll
 from keeks.binary_strategies import KellyCriterion
+from keeks.binary_strategies.base import BaseStrategy
 
 from keeks_elote import Backtest
-from keeks_elote.backtest import american_to_decimal
+from keeks_elote.backtest import _strategy_for_bet, american_to_decimal
 
 
 class StubArena:
@@ -192,6 +193,172 @@ def test_true_odds_pricing_can_be_disabled():
     bankroll, strategy = run_kelly_bet(-500, price_bets_at_true_odds=False)
 
     assert bankroll.total_funds == 1020.0
+    assert strategy.payoff == 1.0
+
+
+class ImmutablePricingKelly(KellyCriterion):
+    """A Kelly that enforces keeks' immutable-after-init contract.
+
+    Any attribute write after ``__init__`` completes raises, the way a keeks
+    version with frozen strategies reacts to mutation. Only fresh construction
+    through the constructor can re-price a bet for this strategy.
+    """
+
+    def __init__(self, payoff, loss, transaction_cost=0):
+        super().__init__(payoff, loss, transaction_cost)
+        self._locked = True
+
+    def __setattr__(self, name, value):
+        if getattr(self, "_locked", False):
+            raise AttributeError(f"{type(self).__name__} is immutable after initialization")
+        object.__setattr__(self, name, value)
+
+
+def run_immutable_kelly_bet(winner_odds):
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": winner_odds, "loser_odds": -500}],
+    }
+    backtest = Backtest(ProbabilityArena(0.55))
+    strategy = ImmutablePricingKelly(payoff=1.0, loss=1.0, transaction_cost=0.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+    backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
+    return backtest, strategy
+
+
+def test_repricing_constructs_a_fresh_strategy_instead_of_mutating_a_copy():
+    """True-odds re-pricing must survive a strategy that forbids attribute writes.
+
+    keeks strategies are immutable after init. A copy-and-mutate re-pricing either
+    raises against a frozen strategy or, on one that silently ignores the write,
+    quietly quotes every bet from the strategy's configured pricing — stakes sized
+    from stale odds with no error.
+    """
+    backtest, strategy = run_immutable_kelly_bet(150)
+
+    # +150 is decimal 2.5, so the bet is quoted payoff 1.5 and Kelly stakes
+    # f* = 0.55 - 0.45/1.5 = 0.25 of the 1000.0 bankroll.
+    assert backtest.bet_history[0]["fraction"] == pytest.approx(0.25)
+    assert backtest.bet_history[0]["stake"] == pytest.approx(250.0)
+    assert backtest.bet_history[0]["payoff"] == pytest.approx(1.5)
+    assert strategy.payoff == 1.0
+    assert strategy.loss == 1.0
+
+
+def test_stake_follows_true_odds_rather_than_the_configured_payoff():
+    """The pin for the silent bug: when true odds differ from the configured pricing, stakes follow true odds."""
+    backtest, _ = run_immutable_kelly_bet(150)
+
+    # Sizing from the strategy's configured payoff 1.0 would stake 100.0
+    # (f* = 0.55 - 0.45/1.0); the bet's true odds stake 250.0 and settle it as a win.
+    assert backtest.bet_history[0]["stake"] == pytest.approx(250.0)
+    assert backtest.bet_history[0]["profit"] == pytest.approx(375.0)
+    assert backtest.bet_history[0]["bankroll_after"] == pytest.approx(1375.0)
+
+
+def test_repricing_keeps_the_rest_of_the_strategy_configuration():
+    """A re-priced strategy replays every constructor argument, not only the pricing."""
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -500}],
+    }
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0, min_probability=0.6)
+    backtest = Backtest(ProbabilityArena(0.55))  # 0.55 sits below the 0.6 floor
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+
+    backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
+
+    assert backtest.bet_history == []
+    assert bankroll.total_funds == 1000.0
+
+
+def test_each_bet_is_quoted_its_own_re_priced_strategy():
+    """Two games priced in one period are quoted independently, each at its own odds."""
+    data = {
+        1: [],
+        2: [
+            {"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -500},
+            {"winner": "C", "loser": "D", "winner_odds": 100, "loser_odds": -500},
+        ],
+    }
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+    backtest = Backtest(ProbabilityArena(0.55))
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+
+    backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
+
+    # +150 quotes payoff 1.5 → f* = 0.25; +100 quotes payoff 1.0 → f* = 0.10.
+    assert [record["fraction"] for record in backtest.bet_history] == [pytest.approx(0.25), pytest.approx(0.10)]
+    assert [record["stake"] for record in backtest.bet_history] == [pytest.approx(250.0), pytest.approx(100.0)]
+
+
+def test_pricing_disabled_returns_the_strategy_itself():
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+    assert _strategy_for_bet(strategy, 1.5, False) is strategy
+
+
+def test_pricing_enabled_builds_a_fresh_strategy_per_call():
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+
+    first = _strategy_for_bet(strategy, 1.5, True)
+    second = _strategy_for_bet(strategy, 2.0, True)
+
+    assert first is not strategy
+    assert second is not strategy
+    assert first is not second
+    assert (first.payoff, first.loss) == (1.5, 1.0)
+    assert (second.payoff, second.loss) == (2.0, 1.0)
+    assert (strategy.payoff, strategy.loss) == (1.0, 1.0)
+
+
+class PayoffAwareFixedFraction:
+    """A strategy that prices from its own payoff but accepts none in its constructor."""
+
+    def __init__(self, fraction=0.2):
+        self.fraction = fraction
+        self.payoff = 1.0
+        self.loss = 1.0
+
+    def evaluate(self, probability, current_bankroll):
+        return self.fraction if self.payoff == 1.5 else 0.0
+
+
+def test_strategies_outside_the_constructor_contract_fall_back_to_a_copy(caplog):
+    """Custom strategies without a keeks-contract constructor still see the bet's pricing, via a copy."""
+    data = {
+        1: [],
+        2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -500}],
+    }
+    strategy = PayoffAwareFixedFraction()
+    backtest = Backtest(StubArena())
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+
+    with caplog.at_level(logging.WARNING):
+        backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
+
+    assert backtest.bet_history[0]["stake"] == 200.0
+    assert strategy.payoff == 1.0
+    assert any("constructor contract" in record.message for record in caplog.records)
+
+
+def test_strategy_with_an_unstored_constructor_argument_falls_back_to_a_copy():
+    """CPPI-style strategies that consume a constructor argument at init cannot be replayed."""
+
+    class CppiLike(BaseStrategy):
+        def __init__(self, payoff, loss, initial_bankroll, transaction_cost=0):
+            super().__init__(payoff, loss, transaction_cost)
+            self.floor = 0.5 * initial_bankroll
+
+        def evaluate(self, probability, current_bankroll):
+            return 0.1
+
+    strategy = CppiLike(payoff=1.0, loss=1.0, initial_bankroll=1000.0)
+
+    repriced = _strategy_for_bet(strategy, 1.5, True)
+
+    assert repriced is not strategy
+    assert repriced.payoff == 1.5
+    assert repriced.loss == 1.0
     assert strategy.payoff == 1.0
 
 
