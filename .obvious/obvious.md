@@ -13,7 +13,7 @@ library, so rating-driven predictions can be backtested against betting strategi
 | Project type | Pure library (`keeks_elote` package) — **no server, no ports, no external services** (no DB / Redis / Docker) |
 | Package manager | `uv` (Makefile and CI both drive `uv venv` + `uv pip install`) |
 | Build backend | hatchling |
-| Runtime deps | `keeks>=0.3.0`, `elote>=1.2.0` |
+| Runtime deps | `keeks>=0.8.0,<0.9`, `elote>=1.3.0,<1.4` |
 | Dev tools | pytest + pytest-cov + pytest-mock, mypy, ruff |
 | Env vars required | none |
 
@@ -40,8 +40,8 @@ Raw uv equivalents (what the Makefile runs): `uv venv .venv --python python3`,
 ## Codebase map
 
 See [codebase-map.md](codebase-map.md) for the folder-level table. In one line:
-`keeks_elote/` (the library; core logic in `backtest.py`, the `create_arena` factory in `arena_factory.py`), `tests/` (197 pytest tests, the package root's surface pinned by `test_public_api.py`),
-`examples/` (CFB and EPL worked examples + data), `.github/workflows/` (CI matrix + PyPI publish).
+`keeks_elote/` (the library; core logic in `backtest.py` and `multi_outcome_backtest.py`, the `create_arena` factory in `arena_factory.py`), `tests/` (216 pytest tests, the package root's surface pinned by `test_public_api.py`),
+`examples/` (CFB and EPL worked examples + data), `.github/workflows/` (CI matrix, dependency drift, PyPI publish).
 
 ## Local verification
 
@@ -74,5 +74,6 @@ quickstart (`Backtest.run_explicit` over a small period-keyed dataset) and `exam
 - `examples/cfb.py` uses relative `./data/...` paths — run it **from the `examples/` directory**.
 - `.gitignore` does not list `.venv/` (the Makefile creates it in the repo root); on this
   sandbox it is excluded via local ignore. Avoid ever staging `.venv/`.
-- `uv.lock` is gitignored; dependency floors are exercised by the `floor` job in CI
-  (`uv pip install --resolution lowest-direct -e .`).
+- `uv.lock` is committed and must stay in sync with `pyproject.toml` (`uv lock`); the drift
+  workflow fails on disagreement (`uv sync --locked`). Dependency floors are exercised by the
+  `floor` job in CI (`uv pip install --resolution lowest-direct -e .`).

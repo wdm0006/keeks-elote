@@ -1,6 +1,6 @@
 [project]
 name = "keeks-elote"
-version = "0.2.0"
+version = "0.3.0"
 description = "A project integrating elote and keeks for rating systems and bankroll management."
 authors = [
     { name = "Will McGinnis" },
@@ -22,7 +22,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
-    "keeks>=0.3.0,<0.8",
+    # keeks 0.8.0 is the first release carrying the multi_outcome API the 1X2
+    # backtest (keeks_elote.multi_outcome_backtest) consumes; the floor makes
+    # it installable from PyPI alone.
+    "keeks>=0.8.0,<0.9",
     # elote's matchup() gained its outcome/scores parameters in 1.3.0; on 1.2.x the
     # arena cannot receive a recorded result, so backtests would silently re-decide
     # every settled game through the user's comparison function.

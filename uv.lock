@@ -697,7 +697,7 @@ wheels = [
 
 [[package]]
 name = "keeks"
-version = "0.6.0"
+version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -705,17 +705,15 @@ dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "pandas", version = "3.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/3c/b61a80d4a6aff8cadfe890c1d5dc30b7194394350432d86332927a290e9e/keeks-0.6.0.tar.gz", hash = "sha256:8f8c639884af14a48469cb7417bf0290fb918e2a0fb8066f29232b7717f99d4a", size = 963892, upload-time = "2026-08-22T16:47:11.614Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/c1/6c427d1f82e2270d2250334c86249b7ac40f3e6334f8421aa6f21577cdb0/keeks-0.8.0.tar.gz", hash = "sha256:bee34b256cf03f38109758cafd8335e1bfdca72572e274484238340c1c21152a", size = 1224916, upload-time = "2026-09-08T02:06:40.486Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/41/5a/cf96eaf94c05adc3f0bec492dc97ed5e206b7fdda04409981801b91b1242/keeks-0.6.0-py3-none-any.whl", hash = "sha256:164ed19e4ad13212d9240b7dd0447cdc215462328e6151fb8ed3049ee415db36", size = 32153, upload-time = "2026-08-22T16:47:10.078Z" },
+    { url = "https://files.pythonhosted.org/packages/27/64/fda40f5c7c1e6e9fe30e01e5149328824abb6d5377b4a4035e9f164fa38b/keeks-0.8.0-py3-none-any.whl", hash = "sha256:01604f92671e2039128d7590b9fe62eb131676337561d74c2e660dc8df5abe56", size = 54812, upload-time = "2026-09-08T02:06:39.041Z" },
 ]
 
 [[package]]
 name = "keeks-elote"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "elote" },
@@ -734,7 +732,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "elote", specifier = ">=1.3.0,<1.4" },
-    { name = "keeks", specifier = ">=0.3.0,<0.8" },
+    { name = "keeks", specifier = ">=0.8.0,<0.9" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=6.2" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
