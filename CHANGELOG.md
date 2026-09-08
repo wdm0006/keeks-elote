@@ -26,6 +26,25 @@ Unreleased
    `examples/data/epl_2023_24.csv` is from football-data.co.uk) through `load_csv`,
    `create_arena`, decimal-odds pricing, `edge`, and the `pnl`/`roi` metrics. It runs in CI
    through the same documented-examples test as `examples/cfb.py`.
+ * `keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest` backtests 1X2 (home, draw,
+   away) markets through keeks' multi-outcome API. The arena's expected score expands into
+   a full (home, draw, away) book via `one_x_two_probabilities`, with a Davidson-style draw
+   term that peaks at rating parity; a keeks multi-outcome strategy (for example
+   `MultiOutcomeKellyCriterion`) splits each game's stake across the legs at the game's own
+   prices; and each game settles through its own one-trial `RepeatedMultiOutcomeSimulator`,
+   so exactly one leg realizes per game and a seeded run replays deterministically. The
+   recorded scores rate the teams -- drawn games rate as draws (outcome 0.5) -- but never
+   decide a bet. Game records (`OneXTwoGameRecord`) name the sides positionally and carry
+   optional `home_odds`/`draw_odds`/`away_odds` prices, consumed when all three are
+   present; the ledger records the book, the stake fractions, the stakes, the realized leg,
+   and the bankroll around every game, so `pnl`/`roi` reconcile with the closing balance.
+   The module needs keeks' `multi_outcome` API (first shipping in keeks 0.8.0, not yet on
+   PyPI -- `make install` bridges it from git), so it imports from its module path and is
+   deliberately not re-exported from the package root until the floor is bumped.
+ * A third end-to-end example, `examples/epl_1x2.py`, runs the 1X2 flow over a clearly
+   synthetic, draw-inclusive ten-week season (`examples/data/epl_1x2_season.csv`,
+   generated -- not real results, since the committed binary EPL fixture excludes draws),
+   printing the realized-leg counts, the staked totals, and the `pnl`/`roi` summary.
 
 v0.2.0
 ======

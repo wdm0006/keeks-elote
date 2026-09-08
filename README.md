@@ -169,9 +169,52 @@ data = load_dataframe(df)                 # same shape, from a DataFrame
 ```
 
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
-college-football data, and [`examples/epl.py`](examples/epl.py) for the same flow over
+college-football data, [`examples/epl.py`](examples/epl.py) for the same flow over
 the real 2023-24 Premier League season -- `load_csv`, `create_arena`, decimal odds,
-`edge`, and the `pnl`/`roi` metrics.
+`edge`, and the `pnl`/`roi` metrics -- and [`examples/epl_1x2.py`](examples/epl_1x2.py)
+for the 1X2 flow below over a synthetic draw-inclusive season.
+
+### The 1X2 (home / draw / away) flow
+
+The binary backtest prices one wager per game because its records name a winner and a
+loser. `keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest` backtests the whole
+three-leg book -- home, draw, away -- through keeks' multi-outcome API: the arena's
+expected score expands into a full (home, draw, away) book with a draw probability that
+peaks at rating parity, a keeks multi-outcome strategy splits the stake across the legs
+at each game's own prices, and settlement is simulated -- one categorical draw per game
+realizes exactly one leg through `RepeatedMultiOutcomeSimulator`, while the recorded
+scores rate the teams (draws rate as draws, outcome 0.5) but never decide a bet.
+
+```python
+from keeks.bankroll import BankRoll
+from keeks.multi_outcome import MultiOutcomeKellyCriterion
+from keeks_elote import create_arena, pnl
+from keeks_elote.multi_outcome_backtest import MultiOutcomeBacktest
+
+backtest = MultiOutcomeBacktest(create_arena("elo"), draw_rate=0.25)
+bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=None)
+backtest.run_explicit(
+    data,                                       # period-keyed 1X2 game records
+    MultiOutcomeKellyCriterion(payoffs=(2.0, 3.0, 3.0), loss=1.0),
+    bankroll,
+    period_to_start_betting=2,
+    seed=42,                                    # settlement replays deterministically
+)
+pnl(backtest.bet_history)                       # net profit over the ledger
+```
+
+1X2 records name the sides positionally (`home`/`away`) and let the scores speak: `2-2`
+is a draw, `0-1` an away win. The `home_odds`/`draw_odds`/`away_odds` prices are
+optional per game and consumed only when all three are present; a game missing any
+price is rated but not bet. `bet_history` records the book, the quoted stake fractions,
+the absolute stakes, the realized leg, and the bankroll reads around every game, so
+`pnl`/`roi` reconcile with the closing balance.
+
+This flow needs keeks' `multi_outcome` module (keeks >= 0.8.0), which is not on PyPI
+yet -- install keeks from its git default branch (`make install` does). Until the
+keeks floor is bumped in the 0.3.0 release, the module is imported from its path and
+is not re-exported from the package root, so `import keeks_elote` keeps working on
+every released keeks.
 
 ## License
 
