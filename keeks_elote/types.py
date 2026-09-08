@@ -40,6 +40,37 @@ class GameRecord(_GameRecordRequired, total=False):
     loser_score: float
 
 
+class _OneXTwoGameRecordRequired(TypedDict):
+    """The keys every 1X2 game record must carry: who played and what they scored."""
+
+    home: str
+    away: str
+    home_score: float
+    away_score: float
+
+
+class OneXTwoGameRecord(_OneXTwoGameRecordRequired, total=False):
+    """One historical 1X2 game, as consumed by the multi-outcome backtest.
+
+    Unlike :class:`GameRecord` -- whose ``winner``/``loser`` labels name the
+    side that won, and which therefore cannot represent a draw -- a 1X2 record
+    names the two sides positionally and lets the scores speak: ``2-2`` is a
+    draw, ``0-1`` an away win. The scores drive both the rating update
+    (a drawn game is rated as ``outcome`` 0.5) and the record's usability;
+    a game without them cannot be rated.
+
+    The optional ``home_odds``/``draw_odds``/``away_odds`` prices are consumed
+    when all three are present: they make the game bettable, in either
+    American or decimal format (detected per value; see
+    :func:`keeks_elote.backtest.to_decimal`). A game missing any leg's price
+    is rated but not bet.
+    """
+
+    home_odds: float
+    draw_odds: float
+    away_odds: float
+
+
 class ProjectionRecord(TypedDict):
     """One projected game, as returned by :meth:`Backtest.run_and_project`.
 
