@@ -37,13 +37,6 @@ jobs:
       - name: Install dependencies
         run: uv pip install -e '.[dev]'
 
-      # Mirrors the second half of `make install`: the multi-outcome flow
-      # (and its tests) need keeks' multi_outcome API, which is not on PyPI
-      # yet (first ships in 0.8.0). Every uv run below uses --no-sync so uv
-      # does not silently re-sync this environment back to the uv.lock pin.
-      - name: Install keeks from git (multi-outcome API not on PyPI yet)
-        run: uv pip install 'keeks @ git+https://github.com/wdm0006/keeks.git'
-
       # Mirrors `make test`
       - name: Run tests
         run: uv run --no-sync pytest --cov=keeks_elote tests/

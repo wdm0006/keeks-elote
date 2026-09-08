@@ -1,5 +1,13 @@
-Unreleased
-==========
+v0.3.0 — 2026-09-08
+===================
+
+The Phase 3 deepening of the surface, complete: the odds and edge layer, the `create_arena`
+factory and hidden helpers on the package root, CSV/DataFrame ingestion with a second
+end-to-end example, and — the headline — a rating-driven 1X2 backtest over keeks' multi-outcome
+API. It is also the first release that installs from PyPI with nothing else: the dependency
+floor rises to `keeks>=0.8.0`, the first keeks release carrying the `multi_outcome` API, so
+the temporary install-from-git bridge is retired and `pip install keeks-elote` stands on its
+own.
 
 **Added:**
  * `edge(probability, decimal_odds)` computes a wager's expected value per unit staked --
@@ -38,9 +46,9 @@ Unreleased
    optional `home_odds`/`draw_odds`/`away_odds` prices, consumed when all three are
    present; the ledger records the book, the stake fractions, the stakes, the realized leg,
    and the bankroll around every game, so `pnl`/`roi` reconcile with the closing balance.
-   The module needs keeks' `multi_outcome` API (first shipping in keeks 0.8.0, not yet on
-   PyPI -- `make install` bridges it from git), so it imports from its module path and is
-   deliberately not re-exported from the package root until the floor is bumped.
+   The module needs keeks' `multi_outcome` API, which first shipped in keeks 0.8.0 — the
+   floor this release enforces — so it imports that API from its module path; keeks' package
+   root does not re-export the multi-outcome surface.
  * A third end-to-end example, `examples/epl_1x2.py`, runs the 1X2 flow over a clearly
    synthetic, draw-inclusive ten-week season (`examples/data/epl_1x2_season.csv`,
    generated -- not real results, since the committed binary EPL fixture excludes draws),

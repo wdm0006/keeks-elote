@@ -22,15 +22,12 @@ $(VENV_DIR)/bin/activate:
 install: venv pyproject.toml
 	# Sync main and dev dependencies
 	$(UV) pip install --python $(VENV_DIR)/bin/python -e '.[dev]'
-	# keeks' multi_outcome API is not on PyPI yet (first ships in 0.8.0), so
-	# install keeks from its git default branch. The 0.3.0 release task bumps
-	# the keeks floor and retires this bridge.
-	$(UV) pip install --python $(VENV_DIR)/bin/python 'keeks @ git+https://github.com/wdm0006/keeks.git'
 	@echo "Dependencies installed."
 
 # Run tests with coverage
-# --no-sync: plain `uv run` would re-sync the environment to the committed
-# uv.lock and silently replace the git-installed keeks with the PyPI pin.
+# --no-sync: run against exactly what `uv pip install` put in the environment;
+# a plain `uv run` would re-sync it to the committed uv.lock, clobbering any
+# deliberate override such as testing against a keeks git checkout.
 test: install # Make test depend on install to ensure dev deps are present
 	$(UV) run --no-sync --python $(VENV_DIR)/bin/python pytest --cov=keeks_elote tests/
 	@echo "Tests completed."
