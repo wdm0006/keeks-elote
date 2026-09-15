@@ -1,6 +1,10 @@
 Unreleased
 ==========
 
+**Added:**
+ * The 1X2 public surface -- `MultiOutcomeBacktest`, `one_x_two_probabilities`, and
+   `OneXTwoGameRecord` -- is now available directly from `keeks_elote`.
+
 **Documentation:**
  * The 1X2 flow now states a known upstream over-credit in keeks' settlement, in both the
    README's 1X2 section and the `MultiOutcomeBacktest` class docstring. keeks 0.8.0's

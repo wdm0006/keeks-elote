@@ -8,12 +8,22 @@ removal from the surface fails loudly too. This follows the pattern of keeks
 """
 
 import keeks_elote
-from keeks_elote import arena_factory, backtest, data_handling, model_evaluation, rating_arena, types
+from keeks_elote import (
+    arena_factory,
+    backtest,
+    data_handling,
+    model_evaluation,
+    multi_outcome_backtest,
+    rating_arena,
+    types,
+)
 
 PINNED_SURFACE = [
     "Backtest",
     "GameRecord",
     "MatchupTuple",
+    "MultiOutcomeBacktest",
+    "OneXTwoGameRecord",
     "ProjectionRecord",
     "RatingArena",
     "american_to_decimal",
@@ -22,6 +32,7 @@ PINNED_SURFACE = [
     "edge",
     "load_csv",
     "load_dataframe",
+    "one_x_two_probabilities",
     "pnl",
     "prepare_data",
     "roi",
@@ -54,7 +65,10 @@ def test_reexports_are_the_source_objects():
     assert keeks_elote.load_dataframe is data_handling.load_dataframe
     assert keeks_elote.calculate_probabilities is model_evaluation.calculate_probabilities
     assert keeks_elote.create_arena is arena_factory.create_arena
+    assert keeks_elote.MultiOutcomeBacktest is multi_outcome_backtest.MultiOutcomeBacktest
+    assert keeks_elote.one_x_two_probabilities is multi_outcome_backtest.one_x_two_probabilities
     assert keeks_elote.RatingArena is rating_arena.RatingArena
     assert keeks_elote.GameRecord is types.GameRecord
     assert keeks_elote.MatchupTuple is types.MatchupTuple
+    assert keeks_elote.OneXTwoGameRecord is types.OneXTwoGameRecord
     assert keeks_elote.ProjectionRecord is types.ProjectionRecord
