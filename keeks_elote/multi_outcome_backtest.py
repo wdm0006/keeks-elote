@@ -34,8 +34,7 @@ score pair elote cross-checks it against.
 This module is also where the Phase 3 load-bearing assumption -- keeks-elote
 call sites can consume the multi-outcome API -- is exercised for real
 (Phase 3 execution spec, deliverable K4). It needs ``keeks.multi_outcome``,
-which first ships in keeks 0.8.0; until that release is on PyPI, install keeks
-from its git default branch (``make install`` does).
+which first ships in keeks 0.8.0.
 """
 
 import inspect

@@ -4,24 +4,17 @@ These exercise the Phase 3 load-bearing assumption -- keeks-elote call sites
 can consume the keeks multi-outcome API -- through
 :class:`keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest`, including the
 known-ledger settlement-accounting test. The flow needs ``keeks.multi_outcome``,
-which first ships in keeks 0.8.0 (not on PyPI yet, install keeks from git
-main); the module skips with a reason on every keeks release that lacks it.
+which first ships in keeks 0.8.0, the project's declared keeks floor.
 """
 
+import numpy as np
 import pytest
+from keeks.bankroll import BankRoll
+from keeks.multi_outcome import MultiOutcomeKellyCriterion
 
-pytest.importorskip(
-    "keeks.multi_outcome",
-    reason="keeks.multi_outcome needs keeks >= 0.8.0, which is not on PyPI yet; install keeks from git main (make install)",
-)
-
-import numpy as np  # noqa: E402
-from keeks.bankroll import BankRoll  # noqa: E402
-from keeks.multi_outcome import MultiOutcomeKellyCriterion  # noqa: E402
-
-from keeks_elote import create_arena, pnl  # noqa: E402
-from keeks_elote.backtest import roi  # noqa: E402
-from keeks_elote.multi_outcome_backtest import (  # noqa: E402
+from keeks_elote import create_arena, pnl
+from keeks_elote.backtest import roi
+from keeks_elote.multi_outcome_backtest import (
     MultiOutcomeBacktest,
     one_x_two_probabilities,
 )
