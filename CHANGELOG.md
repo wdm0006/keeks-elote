@@ -1,3 +1,10 @@
+Unreleased
+==========
+
+**Added:**
+ * The 1X2 public surface -- `MultiOutcomeBacktest`, `one_x_two_probabilities`, and
+   `OneXTwoGameRecord` -- is now available directly from `keeks_elote`.
+
 v0.3.0 — 2026-09-08
 ===================
 

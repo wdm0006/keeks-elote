@@ -188,8 +188,7 @@ scores rate the teams (draws rate as draws, outcome 0.5) but never decide a bet.
 ```python
 from keeks.bankroll import BankRoll
 from keeks.multi_outcome import MultiOutcomeKellyCriterion
-from keeks_elote import create_arena, pnl
-from keeks_elote.multi_outcome_backtest import MultiOutcomeBacktest
+from keeks_elote import MultiOutcomeBacktest, create_arena, pnl
 
 backtest = MultiOutcomeBacktest(create_arena("elo"), draw_rate=0.25)
 bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=None)
@@ -210,11 +209,8 @@ price is rated but not bet. `bet_history` records the book, the quoted stake fra
 the absolute stakes, the realized leg, and the bankroll reads around every game, so
 `pnl`/`roi` reconcile with the closing balance.
 
-This flow needs keeks' `multi_outcome` module (keeks >= 0.8.0), which is not on PyPI
-yet -- install keeks from its git default branch (`make install` does). Until the
-keeks floor is bumped in the 0.3.0 release, the module is imported from its path and
-is not re-exported from the package root, so `import keeks_elote` keeps working on
-every released keeks.
+This flow uses keeks' `multi_outcome` module. The declared keeks >= 0.8.0 floor is
+available from PyPI and is installed with the package.
 
 ## License
 
