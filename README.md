@@ -210,6 +210,19 @@ price is rated but not bet. `bet_history` records the book, the quoted stake fra
 the absolute stakes, the realized leg, and the bankroll reads around every game, so
 `pnl`/`roi` reconcile with the closing balance.
 
+**Known upstream over-credit: 1X2 P&L is inflated.** The arithmetic above reconciles,
+but the economics do not. keeks 0.8.0's `RepeatedMultiOutcomeSimulator.evaluate_strategy`
+credits the realized leg `payoff * stake` without debiting that leg's own stake, while
+every losing leg is charged its full stake -- so the winning leg is over-credited by
+exactly one stake unit and every `pnl`/`roi` number a 1X2 run reports is inflated by the
+sum of the winning stakes. A fully hedged book at exactly fair odds, which must break
+even, prints a risk-free 25-50% instead. The defect is in keeks and cannot be corrected
+here: the simulator rejects a payoffs mismatch between itself and the strategy, so there
+is no local repricing that hands it net odds while Kelly sizes from decimals. **1X2 P&L
+is therefore not comparable to the binary `Backtest`'s**, whose settlement debits each
+stake and is correct -- compare 1X2 runs only against other 1X2 runs. A characterization
+test pins today's upstream arithmetic so the change is loud when keeks fixes it.
+
 This flow needs keeks' `multi_outcome` module (keeks >= 0.8.0), which is not on PyPI
 yet -- install keeks from its git default branch (`make install` does). Until the
 keeks floor is bumped in the 0.3.0 release, the module is imported from its path and
