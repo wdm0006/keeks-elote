@@ -1,3 +1,18 @@
+Unreleased
+==========
+
+**Documentation:**
+ * The 1X2 flow now states a known upstream over-credit in keeks' settlement, in both the
+   README's 1X2 section and the `MultiOutcomeBacktest` class docstring. keeks 0.8.0's
+   `RepeatedMultiOutcomeSimulator.evaluate_strategy` credits the realized leg
+   `payoff * stake` without debiting that leg's own stake, so every `pnl`/`roi` number a
+   1X2 run reports is inflated by the sum of the winning stakes and is **not comparable to
+   the binary `Backtest`'s**, whose settlement debits each stake and is correct. The defect
+   is in keeks and cannot be corrected here; a new characterization test
+   (`TestUpstreamSettlementOverCredit`) pins today's upstream arithmetic against a fully
+   hedged fair book, so the change is loud when keeks fixes it rather than silently moving
+   every recorded P&L.
+
 v0.3.0 — 2026-09-08
 ===================
 

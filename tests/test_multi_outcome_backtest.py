@@ -18,6 +18,7 @@ pytest.importorskip(
 import numpy as np  # noqa: E402
 from keeks.bankroll import BankRoll  # noqa: E402
 from keeks.multi_outcome import MultiOutcomeKellyCriterion  # noqa: E402
+from keeks.multi_outcome.simulators import RepeatedMultiOutcomeSimulator  # noqa: E402
 
 from keeks_elote import create_arena, pnl  # noqa: E402
 from keeks_elote.backtest import roi  # noqa: E402
@@ -58,6 +59,16 @@ class BoomStrategy:
 
     def evaluate(self, probabilities, current_bankroll):
         raise RuntimeError("strategy exploded")
+
+
+class FixedVectorStrategy:
+    """Duck-typed strategy quoting one fixed fraction per leg."""
+
+    def __init__(self, fractions):
+        self.fractions = tuple(fractions)
+
+    def evaluate(self, probabilities, current_bankroll):
+        return list(self.fractions)
 
 
 def game(home, away, home_score, away_score, home_odds=3.0, draw_odds=3.2, away_odds=2.5, **overrides):
@@ -128,6 +139,79 @@ def two_period_schedule():
     }
 
 
+class TestUpstreamSettlementOverCredit:
+    """Characterization of keeks' winning-leg settlement, at the keeks boundary.
+
+    ``RepeatedMultiOutcomeSimulator.evaluate_strategy`` credits the realized
+    leg ``deposit(payoff * stake)`` and never debits that leg's own stake,
+    while every losing leg is charged ``withdraw(loss * stake)``. Under the
+    decimal-odds convention both this repository and keeks'
+    ``MultiOutcomeKellyCriterion`` document (``a_i = payoff_i - 1``; a winning
+    leg pays its payoff times its stake, stake included), that over-credits
+    the winning leg by exactly one stake unit.
+
+    The cleanest proof is a fully hedged book at exactly fair odds, which must
+    break even whichever leg lands: staking ``s_i = p_i`` of the bankroll at
+    ``payoff_i = 1 / p_i`` returns ``s_i * payoff_i`` = one bankroll unit
+    however the draw falls, against ``sum(s_i)`` = one unit staked. So the
+    fair book below is zero-edge and the correct closing balance is
+    ``1000.0`` for every realized leg. keeks 0.8.0 returns 1500.0 / 1250.0 /
+    1250.0 instead -- a risk-free 25-50% -- because each winning stake is
+    never at risk.
+
+    These assertions therefore pin an UPSTREAM DEFECT, not correct
+    accounting. The fix belongs in
+    ``keeks.multi_outcome.simulators.RepeatedMultiOutcomeSimulator.evaluate_strategy``
+    (the ``amt = (self.payoffs[leg] * stake) - self.transaction_costs``
+    line), which this repository cannot reach: the simulator's
+    ``_validate_strategy_odds`` rejects a payoffs mismatch between simulator
+    and strategy, so there is no local repricing that hands the simulator net
+    odds while Kelly sizes from decimals. When keeks corrects it, this test
+    goes red loudly -- naming the cause -- instead of every 1X2 ``pnl()`` /
+    ``roi()`` number moving silently.
+    """
+
+    # A fair book: probabilities (0.5, 0.25, 0.25) priced at their reciprocals.
+    FAIR_PAYOFFS = (2.0, 4.0, 4.0)
+    FAIR_STAKE_FRACTIONS = (0.5, 0.25, 0.25)
+
+    def settle_forcing(self, leg):
+        """Runs one trial of the fair book with ``leg`` forced to realize.
+
+        The probability vector handed to the simulator is degenerate -- all
+        mass on the leg under test -- so the categorical draw is pinned
+        without depending on a seed. The FAIR book's own probabilities live
+        in the stake vector, which is what makes the wager zero-edge.
+        """
+        probabilities = tuple(1.0 if index == leg else 0.0 for index in range(3))
+        simulator = RepeatedMultiOutcomeSimulator(
+            payoffs=self.FAIR_PAYOFFS,
+            loss=1.0,
+            transaction_costs=0.0,
+            probabilities=probabilities,
+            trials=1,
+            seed=7,
+        )
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        simulator.evaluate_strategy(FixedVectorStrategy(self.FAIR_STAKE_FRACTIONS), bankroll)
+        return bankroll.total_funds
+
+    @pytest.mark.parametrize(
+        "leg, over_credited_balance",
+        [
+            # Correct decimal accounting closes at 1000.0 in all three rows --
+            # the wager is a fully hedged dutch book at exactly fair odds.
+            # The surplus is the winning stake the upstream settlement never
+            # debits: 500.0 on leg 0, 250.0 on legs 1 and 2.
+            (0, 1500.0),
+            (1, 1250.0),
+            (2, 1250.0),
+        ],
+    )
+    def test_fair_dutch_book_returns_a_guaranteed_profit(self, leg, over_credited_balance):
+        assert self.settle_forcing(leg) == pytest.approx(over_credited_balance)
+
+
 class TestExactlyOneSettlementLedger:
     """The known-ledger settlement accounting test.
 
@@ -171,8 +255,18 @@ class TestExactlyOneSettlementLedger:
             bettable = round(bankroll_before * 1.0, 2)
             stakes = tuple(round(bettable * 0.1, 2) for _ in range(3))
 
-            # Exactly-one-settlement accounting: one leg won at its decimal
-            # payoff, every other staked leg lost at its full stake.
+            # Exactly one leg settles as a win and every other staked leg as a
+            # full-stake loss -- but the two won-leg expressions below encode
+            # the UPSTREAM OVER-CREDIT documented in
+            # TestUpstreamSettlementOverCredit, not correct decimal
+            # accounting. keeks credits the winning leg `payoff * stake` with
+            # no matching stake debit, so its return is gross rather than net
+            # and the trailing `+ stakes[won_leg]` cancels the winning stake
+            # out of the risked total -- i.e. that stake is never at risk.
+            # Correct accounting would be `(payoffs[won_leg] - 1) * stakes[won_leg]`
+            # on the return and `payoffs[won_leg] * stakes[won_leg] - sum(stakes)`
+            # on the profit. The expressions are left as they are because they
+            # correctly describe what the code does today.
             returns = [-1.0 * stake / bankroll_before for stake in stakes]
             returns[won_leg] = record["payoffs"][won_leg] * stakes[won_leg] / bankroll_before
             profit = record["payoffs"][won_leg] * stakes[won_leg] - sum(stakes) + stakes[won_leg]

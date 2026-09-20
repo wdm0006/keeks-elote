@@ -336,6 +336,30 @@ class MultiOutcomeBacktest:
     (a leg with no price, or a price that fits no format) are warned about and
     skipped: they produce no ledger entry and, when unratable, no rating
     update either.
+
+    .. warning::
+
+       **Known upstream over-credit: 1X2 P&L is inflated.** keeks 0.8.0's
+       :meth:`keeks.multi_outcome.RepeatedMultiOutcomeSimulator.evaluate_strategy`
+       credits the realized leg ``payoff * stake`` without debiting that
+       leg's own stake, while every losing leg is charged its full stake. The
+       winning leg is therefore over-credited by exactly one stake unit, so
+       every ``profit``, ``bankroll_after`` and ``returns`` value this ledger
+       records -- and every :func:`pnl` and :func:`roi` number derived from
+       it -- is inflated by the sum of the winning stakes. A fully hedged
+       book at exactly fair odds, which must break even, prints a risk-free
+       25-50% instead. The defect is in keeks and cannot be corrected here:
+       the simulator rejects a payoffs mismatch between itself and the
+       strategy, so there is no local repricing that hands it net odds while
+       Kelly sizes from decimals.
+
+       Consequence for readers of a run: **1X2 P&L is not comparable to the
+       binary** :class:`keeks_elote.backtest.Backtest` **backtest's**, whose
+       settlement debits each stake and is correct. Compare 1X2 runs only
+       against other 1X2 runs. The characterization test
+       ``TestUpstreamSettlementOverCredit`` in
+       ``tests/test_multi_outcome_backtest.py`` pins today's upstream
+       arithmetic so the change is loud when keeks fixes it.
     """
 
     def __init__(self, arena: RatingArena, draw_rate: float = 0.25):
