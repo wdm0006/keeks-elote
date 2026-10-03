@@ -13,6 +13,14 @@ Unreleased
    hedged fair book, so the change is loud when keeks fixes it rather than silently moving
    every recorded P&L.
 
+**Fixed:**
+ * `load_dataframe` reads each row under the same stripped column names it validates, so a
+   whitespace-padded header resolves to the column it names instead of being stranded. A padded
+   optional column (`winner_odds `) used to fall through as an unknown column, leaving the game
+   with one odds side and silently unbettable; a padded required column (` period`) passed
+   validation and then raised `period is missing`. `load_csv` already normalized its header this
+    way, so the two loaders now agree.
+
 v0.3.0 — 2026-09-08
 ===================
 

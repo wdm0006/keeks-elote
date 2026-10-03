@@ -199,6 +199,37 @@ def test_load_dataframe_bad_period_raises():
         load_dataframe(df)
 
 
+def test_load_dataframe_strips_padded_optional_column_names():
+    """A padded optional column reaches its parser instead of being stranded under the padded key."""
+    df = _FakeDataFrame(
+        ["period", "winner", "loser", "winner_odds ", " loser_odds"],
+        [{"period": 1, "winner": "Alpha", "loser": "Beta", "winner_odds ": 2.0, " loser_odds": 2.0}],
+    )
+    (record,) = load_dataframe(df)[1]
+    assert record["winner_odds"] == 2.0
+    assert record["loser_odds"] == 2.0
+    assert "winner_odds " not in record
+    assert " loser_odds" not in record
+
+
+def test_load_dataframe_strips_padded_required_column_names():
+    """A padded required column loads under its period key rather than raising."""
+    df = _FakeDataFrame(
+        [" period", "winner ", " loser"],
+        [{" period": 1, "winner ": "Alpha", " loser": "Beta"}],
+    )
+    assert load_dataframe(df) == {1: [{"period": 1, "winner": "Alpha", "loser": "Beta"}]}
+
+
+def test_load_dataframe_passes_unknown_columns_through():
+    """Genuinely unknown columns still pass through onto the record untouched."""
+    df = _FakeDataFrame(
+        ["period", "winner", "loser", "venue"],
+        [{"period": 1, "winner": "Alpha", "loser": "Beta", "venue": "Stadium One"}],
+    )
+    assert load_dataframe(df) == {1: [{"period": 1, "winner": "Alpha", "loser": "Beta", "venue": "Stadium One"}]}
+
+
 def test_load_dataframe_with_real_pandas():
     """The same contract against real pandas, for environments that have it (the floor CI job does not)."""
     pandas = pytest.importorskip("pandas")

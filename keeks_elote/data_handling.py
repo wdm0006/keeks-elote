@@ -263,5 +263,10 @@ def load_dataframe(df: Any) -> Dict[int, List[GameRecord]]:
         missing or not an integer.
     """
     _require_columns([str(column).strip() for column in df.columns], "data frame")
-    rows = [(f"row {index}", row) for index, row in enumerate(df.to_dict(orient="records"))]
+    # Strip the row keys the same way load_csv reassigns stripped fieldnames onto its
+    # reader, so the validator above and the reader below see one mapping.
+    rows = [
+        (f"row {index}", {str(key).strip(): value for key, value in row.items()})
+        for index, row in enumerate(df.to_dict(orient="records"))
+    ]
     return cast(Dict[int, List[GameRecord]], _periods_from_rows(rows))
