@@ -42,8 +42,8 @@ def main():
 
     logger.info("Setting up the arena (create_arena), bankroll, and Kelly strategy...")
     arena = create_arena("elo")
-    bank = BankRoll(initial_funds=1000, percent_bettable=0.5, max_draw_down=1.0)
-    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+    bank = BankRoll(initial_funds=1000, percent_bettable=0.5, max_transaction_loss=1.0)
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost_rate=0.0)
 
     logger.info("Running the season backtest (betting starts after matchweek 6)...")
     backtest = Backtest(arena)

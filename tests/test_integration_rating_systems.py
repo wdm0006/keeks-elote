@@ -144,12 +144,12 @@ def test_margin_ratings_drive_a_full_betting_run(competitor_class):
             }
         ],
     }
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
     backtest = Backtest(_arena(competitor_class))
 
     result = backtest.run_explicit(
         data,
-        KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0),
+        KellyCriterion(payoff=1.0, loss=1.0, transaction_cost_rate=0.0),
         bankroll,
         period_to_start_betting=1,
     )

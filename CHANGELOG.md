@@ -1,31 +1,48 @@
 Unreleased
 ==========
 
-**Changed (behaviour change):**
- * `MultiOutcomeBacktest.run_explicit` now settles each 1X2 game against its **recorded result** by
-   default (`settlement="recorded"`), matching the binary `Backtest`: the realized leg comes from
-   `home_score`/`away_score`, stakes are debited and the winning leg is credited `payoff * stake`
-   directly on the bankroll. This bypasses keeks' simulator, so it is not affected by the winner
-   over-credit, and `pnl`/`roi` are comparable with the binary path. **The previous behaviour -- a
-   leg drawn from the model's own book -- is now `settlement="simulated"`** (`seed` is only
-   meaningful there); pass it to reproduce earlier 1X2 results. An unknown `settlement` value
-   raises `ValueError` before any rating or pricing work. The `bet_history` schema is unchanged.
+v0.4.0 — 2026-10-05
+===================
 
 **Added:**
+ * The weekly-portfolio layer: `WeeklyPortfolioBacktest` (`keeks_elote.portfolio_backtest`,
+   exported from the package root) sizes each period's slate of games as one joint
+   decision. The week's arena probabilities and posted moneylines become a keeks
+   `BinaryBetsModel`, an allocator weights the whole slate at once, and one
+   `AllocationSimulator` trial settles the week batch-net through the shared bankroll.
+   Ratings update only after a week settles (no lookahead), games without a usable
+   moneyline are rated but not bet, and seeded runs replay bit-exactly: a schedule
+   whose every game carries a parseable `date` is rated at those times (kickoff order,
+   calendar-based Glicko deviation decay) instead of elote's wall-clock default, whose
+   microsecond timing noise otherwise compounds into the sampled settlements across
+   processes. The weekly
+   ledger carries stakes, the weight vector, settled returns, and running bankroll.
+   `examples/cfb_weekly_portfolio.py` replays the committed 2017 CFB season through the
+   per-bet Kelly baseline vs joint mean-variance and mean-CVaR allocators over identical
+   weeks, and renders the bankroll-path comparison with keeks' allocation plot helpers.
  * The 1X2 public surface -- `MultiOutcomeBacktest`, `one_x_two_probabilities`, and
    `OneXTwoGameRecord` -- is now available directly from `keeks_elote`.
 
-**Documentation:**
- * The 1X2 flow now states a known upstream over-credit in keeks' settlement, in both the
-   README's 1X2 section and the `MultiOutcomeBacktest` class docstring. keeks 0.8.0's
-   `RepeatedMultiOutcomeSimulator.evaluate_strategy` credits the realized leg
-   `payoff * stake` without debiting that leg's own stake, so every `pnl`/`roi` number a
-   1X2 run reports is inflated by the sum of the winning stakes and is **not comparable to
-   the binary `Backtest`'s**, whose settlement debits each stake and is correct. The defect
-   is in keeks and cannot be corrected here; a new characterization test
-   (`TestUpstreamSettlementOverCredit`) pins today's upstream arithmetic against a fully
-   hedged fair book, so the change is loud when keeks fixes it rather than silently moving
-   every recorded P&L.
+**Changed:**
+ * 1X2 settlement is exact by default: `MultiOutcomeBacktest.run_explicit` settles each game
+   against its **recorded result** (`settlement="recorded"`) -- the realized leg comes from
+   `home_score`/`away_score`, stakes are debited and the winning leg is credited `payoff * stake`
+   directly on the bankroll -- matching the binary `Backtest`'s accounting, so `pnl`/`roi` compare
+   across the two paths. The previous behaviour -- a leg drawn from the model's own book -- remains
+   available as `settlement="simulated"` (`seed` is only meaningful there). An unknown `settlement`
+   value raises `ValueError` before any rating or pricing work. The `bet_history` schema is unchanged.
+ * keeks floor raised to `keeks[allocation]>=0.9.0,<0.10` -- the allocation extra ships
+   scipy, so the mean-CVaR allocator works out of the box -- and the elote ceiling raised
+   from `<1.4` to `<2`, verified by the full suite against elote 1.5.1. keeks 0.9.0's
+   breaking renames are absorbed forward with no compatibility shims:
+   `max_draw_down` to `max_transaction_loss`, `transaction_cost` to `transaction_cost_rate`,
+   `add_funds` to `deposit`, and strategies' settlement hook is now
+   `record_settlement(won, realized_returns)`.
+ * 1X2 P&L is now comparable to the binary `Backtest`'s: keeks 0.9.0 fixed the
+   multi-outcome settlement over-credit that inflated every 1X2 `pnl`/`roi` number (a
+   fully hedged fair book used to print a risk-free 25-50% instead of breaking even).
+   The stale warnings are gone, and the fair-book characterization test now asserts
+   break-even, staying loud if the arithmetic ever drifts again.
 
 **Fixed:**
  * `load_dataframe` reads each row under the same stripped column names it validates, so a

@@ -1,6 +1,6 @@
 [project]
 name = "keeks-elote"
-version = "0.3.0"
+version = "0.4.0"
 description = "A project integrating elote and keeks for rating systems and bankroll management."
 authors = [
     { name = "Will McGinnis" },
@@ -22,14 +22,17 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
-    # keeks 0.8.0 is the first release carrying the multi_outcome API the 1X2
-    # backtest (keeks_elote.multi_outcome_backtest) consumes; the floor makes
-    # it installable from PyPI alone.
-    "keeks>=0.8.0,<0.9",
+    # keeks 0.9.0 is the allocation-layer floor: the weekly-portfolio backtest
+    # (keeks_elote.portfolio_backtest) consumes keeks.allocation's joint-return
+    # models and simulator, and the [allocation] extra transitively provides the
+    # scipy the scenario-based MeanCVaR allocator optimizes with.
+    "keeks[allocation]>=0.9.0,<0.10",
     # elote's matchup() gained its outcome/scores parameters in 1.3.0; on 1.2.x the
     # arena cannot receive a recorded result, so backtests would silently re-decide
-    # every settled game through the user's comparison function.
-    "elote>=1.3.0,<1.4",
+    # every settled game through the user's comparison function. 1.5.x adds
+    # competitor variants without touching the matchup() contract keeks-elote
+    # relies on.
+    "elote>=1.3.0,<2",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +44,14 @@ dev = [
     "ruff>=0.0.1",
     # Add other dev dependencies here
 ]
+
+[tool.uv.sources]
+# keeks 0.9.0 ships its allocation layer on GitHub master (version.py says 0.9.0)
+# but has not been published to PyPI yet, so the lock resolves the declared
+# >=0.9.0,<0.10 floor from the exact master commit instead of the registry.
+# Once keeks 0.9.0 reaches PyPI, delete this entry and re-lock — the published
+# metadata never carries tool.uv.sources, so downstream users are unaffected.
+keeks = { git = "https://github.com/wdm0006/keeks", rev = "091aad9ede9da4ce33add7ac78ee447a346a015f" }
 
 [project.urls]
 Homepage = "https://github.com/wdm0006/keeks-elote"

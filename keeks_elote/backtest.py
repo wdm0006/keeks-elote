@@ -303,22 +303,24 @@ def _record_result_on_strategy(
 ) -> None:
     """Notifies a stateful strategy of a settled bet, mirroring keeks' own simulators.
 
-    keeks strategies may expose ``record_result(won, return_pct)`` to keep state between
-    bets (DynamicBankrollManagement's streak and volatility windows, for example);
-    strategies without the hook are skipped. ``return_pct`` follows the simulators'
-    convention -- the bet's net profit over the bankroll it was placed from -- because a
-    re-priced bet's economics differ from the strategy's configured pricing. A hook that
-    raises is logged and skipped: the bet's money has already settled truthfully, and
-    one broken state hook should not corrupt the financial record or abort the run.
+    keeks 0.9 strategies expose ``record_settlement(won, realized_returns)`` to keep
+    state between bets (DynamicBankrollManagement's streak and volatility windows, for
+    example); strategies without the hook are skipped. The call follows the binary
+    simulators' convention exactly -- one option per bet, ``won`` a one-element outcome
+    flag tuple and ``realized_returns`` a one-element tuple of the bet's net profit over
+    the bankroll it was placed from -- because a re-priced bet's economics differ from
+    the strategy's configured pricing. A hook that raises is logged and skipped: the
+    bet's money has already settled truthfully, and one broken state hook should not
+    corrupt the financial record or abort the run.
     """
-    hook = getattr(strategy, "record_result", None)
+    hook = getattr(strategy, "record_settlement", None)
     if not callable(hook):
         return
     try:
-        hook(won, profit / bankroll_before if bankroll_before > 0 else 0.0)
+        hook((won,), (profit / bankroll_before if bankroll_before > 0 else 0.0,))
     except Exception:
         logger.exception(
-            "Strategy %s raised from record_result; continuing without the state update.",
+            "Strategy %s raised from record_settlement; continuing without the state update.",
             type(strategy).__name__,
         )
 
@@ -575,7 +577,7 @@ class Backtest:
         off each other.
 
         After a bet settles with money on it, strategies exposing keeks'
-        ``record_result`` hook are notified via :func:`_record_result_on_strategy`.
+        ``record_settlement`` hook are notified via :func:`_record_result_on_strategy`.
 
         ``percent_bettable`` is a cap on the period's *total* exposure, not on
         each bet in isolation. A strategy quoting a fraction per game has no way
@@ -628,7 +630,7 @@ class Backtest:
                     stake = bet_amount
                     if bet["actual_outcome"]:
                         # Win: return bet amount plus winnings
-                        bankroll.add_funds(bet_amount + bet_amount * bet["payoff"])
+                        bankroll.deposit(bet_amount + bet_amount * bet["payoff"])
                         profit = stake * bet["payoff"]
                         logger.debug(f"Bet WON. Bankroll: {bankroll.total_funds:.2f}")
                     else:
@@ -716,8 +718,8 @@ class Backtest:
         :return: The BankRoll object, updated with results from the backtest.
         :rtype: BankRoll
 
-        Strategies that expose keeks' ``record_result(won, return_pct)`` hook are
-        notified of every bet the run actually settles -- always on the ``strategy``
+        Strategies that expose keeks' ``record_settlement(won, realized_returns)`` hook
+        are notified of every bet the run actually settles -- always on the ``strategy``
         instance passed in, even when each bet is priced by a freshly constructed
         re-priced copy -- so stateful strategies such as
         ``DynamicBankrollManagement`` update their state mid-run. Strategies without

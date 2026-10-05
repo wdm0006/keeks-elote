@@ -179,7 +179,7 @@ class TestDecimalOddsPricingPath:
     """Decimal odds price bets exactly where American odds always have."""
 
     def _run(self, odds_data, fraction=0.1):
-        bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+        bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
         backtest = Backtest(StubArena())
         backtest.run_explicit(
             {1: [], 2: odds_data},

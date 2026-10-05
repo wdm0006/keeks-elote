@@ -8,7 +8,7 @@ from keeks.binary_strategies import DynamicBankrollManagement, KellyCriterion
 from keeks.binary_strategies.base import BaseStrategy
 
 from keeks_elote import Backtest
-from keeks_elote.backtest import _matchup_tuple, _strategy_for_bet, american_to_decimal
+from keeks_elote.backtest import _matchup_tuple, _strategy_for_bet, american_to_decimal, to_decimal
 
 
 class StubArena:
@@ -71,7 +71,7 @@ def run_single_bet(selected_probability, bankroll=None):
         2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
     }
     if bankroll is None:
-        bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+        bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
 
     return Backtest(StubArena()).run_explicit(
         data,
@@ -95,7 +95,7 @@ def test_losing_bet_deducts_stake():
 
 def test_stake_uses_the_bankroll_the_strategy_was_quoted():
     """The strategy prices its fraction against total funds, so that is the staking base."""
-    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
 
     run_single_bet(selected_probability=0.75, bankroll=bankroll)
 
@@ -111,7 +111,7 @@ def test_overdrawn_period_is_scaled_proportionally_not_dropped(caplog):
             {"winner": "E", "loser": "F", "winner_odds": 150, "loser_odds": -200},
         ],
     }
-    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=1.0, max_transaction_loss=1.0)
 
     with caplog.at_level(logging.WARNING):
         Backtest(StubArena()).run_explicit(
@@ -144,7 +144,7 @@ def test_same_period_bets_use_opening_bankroll():
         1: [],
         2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
     }
-    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
 
     Backtest(StubArena()).run_explicit(
         data,
@@ -162,8 +162,8 @@ def run_kelly_bet(winner_odds, *, price_bets_at_true_odds=True):
         1: [],
         2: [{"winner": "A", "loser": "B", "winner_odds": winner_odds, "loser_odds": -500}],
     }
-    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost_rate=0.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_transaction_loss=1.0)
 
     result = Backtest(ProbabilityArena(0.55)).run_explicit(
         data,
@@ -206,8 +206,8 @@ class ImmutablePricingKelly(KellyCriterion):
     through the constructor can re-price a bet for this strategy.
     """
 
-    def __init__(self, payoff, loss, transaction_cost=0):
-        super().__init__(payoff, loss, transaction_cost)
+    def __init__(self, payoff, loss, transaction_cost_rate=0):
+        super().__init__(payoff, loss, transaction_cost_rate)
         self._locked = True
 
     def __setattr__(self, name, value):
@@ -222,8 +222,8 @@ def run_immutable_kelly_bet(winner_odds):
         2: [{"winner": "A", "loser": "B", "winner_odds": winner_odds, "loser_odds": -500}],
     }
     backtest = Backtest(ProbabilityArena(0.55))
-    strategy = ImmutablePricingKelly(payoff=1.0, loss=1.0, transaction_cost=0.0)
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+    strategy = ImmutablePricingKelly(payoff=1.0, loss=1.0, transaction_cost_rate=0.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_transaction_loss=1.0)
     backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
     return backtest, strategy
 
@@ -264,9 +264,9 @@ def test_repricing_keeps_the_rest_of_the_strategy_configuration():
         1: [],
         2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -500}],
     }
-    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0, min_probability=0.6)
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost_rate=0.0, min_probability=0.6)
     backtest = Backtest(ProbabilityArena(0.55))  # 0.55 sits below the 0.6 floor
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_transaction_loss=1.0)
 
     backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
 
@@ -283,9 +283,9 @@ def test_each_bet_is_quoted_its_own_re_priced_strategy():
             {"winner": "C", "loser": "D", "winner_odds": 100, "loser_odds": -500},
         ],
     }
-    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost_rate=0.0)
     backtest = Backtest(ProbabilityArena(0.55))
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_transaction_loss=1.0)
 
     backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
 
@@ -295,12 +295,12 @@ def test_each_bet_is_quoted_its_own_re_priced_strategy():
 
 
 def test_pricing_disabled_returns_the_strategy_itself():
-    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost_rate=0.0)
     assert _strategy_for_bet(strategy, 1.5, False) is strategy
 
 
 def test_pricing_enabled_builds_a_fresh_strategy_per_call():
-    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+    strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost_rate=0.0)
 
     first = _strategy_for_bet(strategy, 1.5, True)
     second = _strategy_for_bet(strategy, 2.0, True)
@@ -333,7 +333,7 @@ def test_strategies_outside_the_constructor_contract_fall_back_to_a_copy(caplog)
     }
     strategy = PayoffAwareFixedFraction()
     backtest = Backtest(StubArena())
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
 
     with caplog.at_level(logging.WARNING):
         backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
@@ -347,8 +347,8 @@ def test_strategy_with_an_unstored_constructor_argument_falls_back_to_a_copy():
     """CPPI-style strategies that consume a constructor argument at init cannot be replayed."""
 
     class CppiLike(BaseStrategy):
-        def __init__(self, payoff, loss, initial_bankroll, transaction_cost=0):
-            super().__init__(payoff, loss, transaction_cost)
+        def __init__(self, payoff, loss, initial_bankroll, transaction_cost_rate=0):
+            super().__init__(payoff, loss, transaction_cost_rate)
             self.floor = 0.5 * initial_bankroll
 
         def evaluate(self, probability, current_bankroll):
@@ -387,6 +387,12 @@ def test_american_to_decimal_rejects_an_unrepresentable_real():
         american_to_decimal(10**400)
 
 
+def test_to_decimal_rejects_an_unrepresentable_real():
+    """to_decimal applies the same too-large-real rejection before format detection."""
+    with pytest.raises(ValueError, match="representable as a float"):
+        to_decimal(10**400)
+
+
 def test_invalid_odds_skip_only_that_side(caplog):
     """One unusable price must not cost the game its opposite wager or its rating update."""
     data = {
@@ -394,7 +400,7 @@ def test_invalid_odds_skip_only_that_side(caplog):
         2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": float("nan")}],
     }
     arena = RecordingArena()
-    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
 
     with caplog.at_level(logging.WARNING):
         Backtest(arena).run_explicit(
@@ -428,7 +434,7 @@ def test_evaluation_skips_a_game_without_labels():
     backstop for direct callers.
     """
     backtest = Backtest(StubArena())
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
     bets = backtest._evaluate_bets_for_next_period(
         FixedFractionStrategy(0.75),
         bankroll,
@@ -458,7 +464,7 @@ def test_period_exposure_never_exceeds_the_bettable_budget():
             {"winner": "G", "loser": "H", "winner_odds": 150, "loser_odds": -200},
         ],
     }
-    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
 
     Backtest(StubArena()).run_explicit(
         data,
@@ -483,7 +489,7 @@ def test_equal_fractions_stay_equal_after_scaling():
             {"winner": "E", "loser": "F", "winner_odds": 150, "loser_odds": -200},
         ],
     }
-    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.6, max_draw_down=1.0)
+    bankroll = RecordingBankRoll(initial_funds=1000.0, percent_bettable=0.6, max_transaction_loss=1.0)
 
     Backtest(StubArena()).run_explicit(
         data,
@@ -505,7 +511,7 @@ def test_scores_are_forwarded_to_the_arena_when_present():
     Backtest(arena).run_explicit(
         data,
         FixedFractionStrategy(0.25, fraction=0.1),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -519,7 +525,7 @@ def test_a_game_without_scores_pins_the_recorded_outcome():
     Backtest(arena).run_explicit(
         data,
         FixedFractionStrategy(0.25, fraction=0.1),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -534,7 +540,7 @@ def test_unparseable_scores_pin_the_recorded_outcome(caplog):
         Backtest(arena).run_explicit(
             data,
             FixedFractionStrategy(0.25, fraction=0.1),
-            BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+            BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
             period_to_start_betting=1,
         )
 
@@ -550,7 +556,7 @@ def test_scores_that_contradict_the_result_pin_the_recorded_outcome(caplog):
         Backtest(arena).run_explicit(
             data,
             FixedFractionStrategy(0.25, fraction=0.1),
-            BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+            BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
             period_to_start_betting=1,
         )
 
@@ -621,7 +627,7 @@ def test_bet_history_is_cleared_not_appended_on_a_second_run():
     backtest.run_explicit(
         data,
         FixedFractionStrategy(0.75),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
     assert len(backtest.bet_history) == 1
@@ -629,7 +635,7 @@ def test_bet_history_is_cleared_not_appended_on_a_second_run():
     backtest.run_explicit(
         data,
         FixedFractionForAllBetsStrategy(),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -647,7 +653,7 @@ def test_bet_history_records_a_winning_bet_exactly():
     backtest.run_explicit(
         data,
         FixedFractionStrategy(0.75),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -679,7 +685,7 @@ def test_bet_history_records_a_losing_bet_exactly():
     backtest.run_explicit(
         data,
         FixedFractionStrategy(0.25),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -701,7 +707,7 @@ def test_bet_history_records_the_bankroll_trajectory_across_a_period():
     backtest.run_explicit(
         data,
         FixedFractionForAllBetsStrategy(),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -727,7 +733,7 @@ def test_bet_history_records_scaled_stakes_not_requested_ones():
     backtest.run_explicit(
         data,
         FixedFractionStrategy(0.25, fraction=0.4),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -751,7 +757,7 @@ def test_bet_history_records_the_clamped_amount():
     backtest.run_explicit(
         data,
         FixedFractionStrategy(0.25, fraction=0.4),
-        BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -772,7 +778,7 @@ def test_bet_history_records_a_zero_stake_bet_with_its_flag():
         1: [],
         2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
     }
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.0, max_draw_down=1.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.0, max_transaction_loss=1.0)
 
     result = backtest.run_explicit(
         data,
@@ -807,7 +813,7 @@ def test_bet_history_records_a_failed_settlement_with_its_error():
     backtest.run_explicit(
         data,
         FixedFractionStrategy(0.75),
-        FailingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        FailingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -831,11 +837,11 @@ def test_stateful_strategy_receives_settled_results_mid_backtest():
         1: [],
         2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": None}],
     }
-    strategy = DynamicBankrollManagement(base_fraction=0.2, payoff=1.0, loss=1.0, transaction_cost=0.0)
+    strategy = DynamicBankrollManagement(base_fraction=0.2, payoff=1.0, loss=1.0, transaction_cost_rate=0.0)
     assert strategy.get_streak_factor() == 1.0  # nothing recorded yet
 
     backtest = Backtest(StubArena())
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
     backtest.run_explicit(data, strategy, bankroll, period_to_start_betting=1)
 
     # Exactly one bet settles: the loser side is unbettable (no valid odds), so the
@@ -853,11 +859,13 @@ class ResultTrackingStrategy(FixedFractionStrategy):
         super().__init__(selected_probability)
         self.recorded = []
 
-    def record_result(self, won, return_pct=None):
-        self.recorded.append((won, return_pct))
+    def record_settlement(self, won, realized_returns=None):
+        # keeks 0.9's unified hook passes one outcome flag and one realized
+        # return per option; the binary backtest settles one option per bet.
+        self.recorded.append((won[0], realized_returns[0] if realized_returns is not None else None))
 
 
-def test_record_result_receives_the_actual_return():
+def test_record_settlement_receives_the_actual_return():
     """The hook sees the bet's real economics: net profit over the pre-bet bankroll."""
     data = {
         1: [],
@@ -868,7 +876,7 @@ def test_record_result_receives_the_actual_return():
     Backtest(StubArena()).run_explicit(
         data,
         strategy,
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -888,7 +896,7 @@ def test_zero_stake_and_failed_settlements_notify_nothing():
     Backtest(StubArena()).run_explicit(
         data,
         zero_stake_strategy,
-        BankRoll(initial_funds=1000.0, percent_bettable=0.0, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.0, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
     assert zero_stake_strategy.recorded == []
@@ -903,17 +911,17 @@ def test_zero_stake_and_failed_settlements_notify_nothing():
     Backtest(StubArena()).run_explicit(
         data,
         failing_strategy,
-        FailingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        FailingBankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
     assert failing_strategy.recorded == []
 
 
-def test_a_raising_record_result_hook_is_logged_and_skipped(caplog):
+def test_a_raising_record_settlement_hook_is_logged_and_skipped(caplog):
     """A broken state hook must not corrupt the settled financial record or abort the run."""
 
     class ExplodingHookStrategy(FixedFractionStrategy):
-        def record_result(self, won, return_pct=None):
+        def record_settlement(self, won, realized_returns=None):
             raise RuntimeError("state tracking broken")
 
     data = {
@@ -921,7 +929,7 @@ def test_a_raising_record_result_hook_is_logged_and_skipped(caplog):
         2: [{"winner": "A", "loser": "B", "winner_odds": 150, "loser_odds": -200}],
     }
     backtest = Backtest(StubArena())
-    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0)
+    bankroll = BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0)
 
     with caplog.at_level(logging.ERROR):
         backtest.run_explicit(data, ExplodingHookStrategy(0.75), bankroll, period_to_start_betting=1)
@@ -929,7 +937,7 @@ def test_a_raising_record_result_hook_is_logged_and_skipped(caplog):
     # The bet itself settled truthfully before the hook ran.
     assert backtest.bet_history[0]["stake"] == 200.0
     assert backtest.bet_history[0]["bankroll_after"] == 1300.0
-    assert any("record_result" in record.message for record in caplog.records)
+    assert any("record_settlement" in record.message for record in caplog.records)
 
 
 class AlwaysRaisesStrategy:
@@ -952,7 +960,7 @@ def test_an_always_raising_strategy_records_every_failed_evaluation():
     backtest.run_explicit(
         data,
         AlwaysRaisesStrategy(),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -994,7 +1002,7 @@ def test_an_always_raising_strategy_reports_failed_bets_in_the_run_summary():
     backtest.run_explicit(
         data,
         AlwaysRaisesStrategy(),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -1029,7 +1037,7 @@ def test_the_run_summary_separates_placed_bets_from_failed_ones():
     backtest.run_explicit(
         data,
         RaisesOnFavorites(),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
         period_to_start_betting=1,
     )
 
@@ -1048,7 +1056,7 @@ def test_the_run_summary_of_a_run_that_considered_nothing_is_all_zeros():
     backtest.run_explicit(
         {1: []},
         FixedFractionStrategy(0.75),
-        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+        BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
     )
 
     assert backtest.run_summary() == {
@@ -1074,7 +1082,7 @@ def test_the_run_summary_is_logged_when_a_run_finishes(caplog):
         backtest.run_explicit(
             data,
             AlwaysRaisesStrategy(),
-            BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_draw_down=1.0),
+            BankRoll(initial_funds=1000.0, percent_bettable=0.5, max_transaction_loss=1.0),
             period_to_start_betting=1,
         )
 
