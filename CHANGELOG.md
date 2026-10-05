@@ -22,6 +22,13 @@ v0.4.0 — 2026-10-05
    weeks, and renders the bankroll-path comparison with keeks' allocation plot helpers.
  * The 1X2 public surface -- `MultiOutcomeBacktest`, `one_x_two_probabilities`, and
    `OneXTwoGameRecord` -- is now available directly from `keeks_elote`.
+ * A Sphinx documentation site under `docs/`, on the keeks docs pattern: the wabi
+   theme with grouped navigation (Examples and API Reference), one page per worked
+   example with the weekly-portfolio bankroll-path chart embedded from
+   `examples/output/`, and a hand-written API reference per module -- no autodoc, so
+   the docs build never imports the package. A `docs` GitHub workflow builds it with
+   Sphinx's `-W --keep-going` (any warning fails the build) and publishes to gh-pages
+   on master.
 
 **Changed:**
  * 1X2 settlement is exact by default: `MultiOutcomeBacktest.run_explicit` settles each game

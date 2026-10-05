@@ -1,0 +1,49 @@
+name: "Docs"
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # Same install path as the CI test jobs: `uv pip install` applies
+      # [tool.uv.sources] from pyproject.toml, so the unpublished keeks 0.9.0
+      # floor resolves from git exactly as it does for the tests.
+      - name: Create virtual environment
+        run: uv venv --python 3.12
+
+      - name: Install dependencies
+        run: uv pip install -e '.[dev]'
+
+      - name: Install docs dependencies
+        run: uv pip install -r docs/requirements.txt
+
+      # Strict build: any Sphinx warning fails the job.
+      - name: Build docs
+        run: uv run --no-sync python -m sphinx -W --keep-going -b html docs/source docs/build/html
+
+      - name: Deploy Docs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: "./docs/build/html/"

@@ -20,4 +20,6 @@ __pycache__
 .pytest_cache
 .DS_Store
 .coverage*
-examples/output/
+examples/output/*
+!examples/output/cfb_weekly_portfolio.png
+docs/build/
