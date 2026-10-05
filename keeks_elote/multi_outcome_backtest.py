@@ -10,17 +10,20 @@ with keeks' multi-outcome machinery:
 * :class:`MultiOutcomeBacktest` walks a period-keyed schedule, prices each
   game's book from the ratings as they stand, sizes the three stakes with
   :class:`keeks.multi_outcome.MultiOutcomeKellyCriterion`, and settles each
-  game through a per-game
-  :class:`keeks.multi_outcome.RepeatedMultiOutcomeSimulator` -- one trial, one
-  categorical draw, exactly one leg realized.
+  game against its recorded result (``settlement="recorded"``, the default) or,
+  opt-in, through a per-game
+  :class:`keeks.multi_outcome.RepeatedMultiOutcomeSimulator` (``"simulated"``).
 
-Two semantics differ from the binary backtest and are worth naming:
+Two semantics are worth naming:
 
-* **Settlement is simulated, not recorded.** A categorical draw realizes one
-  leg from the model's own probabilities; the recorded scores rate the
-  competitors but never decide a settled bet. The binary backtest instead
-  settles against the recorded result. Simulated settlement is what makes the
-  flow a projection exercise -- it prices the strategy the model's own world.
+* **Settlement is recorded by default.** The realized leg comes from the game's
+  ``home_score``/``away_score`` (home win, draw, away win), matching the binary
+  backtest, so a run measures the model's prices against the market's.
+  Stakes are debited and the winning leg is credited ``payoff * stake``
+  (net ``(payoff - 1) * stake``) directly on the bankroll. ``"simulated"``
+  instead draws one leg from the model's own probabilities -- a projection
+  exercise in the model's own world -- and inherits keeks' winner over-credit
+  (see the warning on :class:`MultiOutcomeBacktest`).
 * **``payoffs`` are decimal odds.** keeks' multi-outcome contract quotes each
   leg's payoff as decimal odds -- a winning leg pays ``payoff * stake``, stake
   included -- while the binary backtest's ledger records ``payoff`` as decimal
@@ -39,6 +42,7 @@ which first ships in keeks 0.8.0.
 
 import inspect
 import logging
+import math
 import numbers
 from typing import Any, Dict, List, Optional, Tuple, cast
 
@@ -54,6 +58,36 @@ logger = logging.getLogger(__name__)
 #: Leg order used everywhere: the positional index of a probability, payoff,
 #: stake fraction, or settlement return is fixed by this tuple.
 LEGS = ("home", "draw", "away")
+
+#: Accepted values of ``run_explicit``'s ``settlement`` argument.
+SETTLEMENTS = ("recorded", "simulated")
+
+
+def _recorded_leg(game: OneXTwoGameRecord) -> int:
+    """Index of the leg the game's recorded scores realize (home, draw, away)."""
+    home_score, away_score = float(game["home_score"]), float(game["away_score"])
+    if home_score > away_score:
+        return 0
+    if home_score < away_score:
+        return 2
+    return 1
+
+
+def _require_settlement(settlement: Any) -> None:
+    if settlement not in SETTLEMENTS:
+        raise ValueError(f"settlement must be one of {SETTLEMENTS}, got {settlement!r}.")
+
+
+def _validated_fractions(raw: Any) -> Tuple[float, ...]:
+    """Checks a strategy's quoted stake vector: three finite, non-negative fractions summing to <= 1."""
+    fractions = tuple(float(fraction) for fraction in raw)
+    if len(fractions) != len(LEGS):
+        raise ValueError(f"Strategy quoted {len(fractions)} stake fractions for {len(LEGS)} legs.")
+    if any(not math.isfinite(fraction) or fraction < 0 for fraction in fractions):
+        raise ValueError(f"Strategy quoted invalid stake fractions {fractions!r}.")
+    if sum(fractions) > 1.0 + 1e-9:
+        raise ValueError(f"Strategy quoted stake fractions summing above 1: {fractions!r}.")
+    return fractions
 
 
 def _require_unit_interval(value: Any, name: str) -> float:
@@ -338,7 +372,9 @@ class MultiOutcomeBacktest:
 
     .. warning::
 
-       **Known upstream over-credit: 1X2 P&L is inflated.** keeks 0.8.0's
+       **Simulated settlement only -- known upstream over-credit: 1X2 P&L is inflated.**
+       The default ``settlement="recorded"`` path bypasses the simulator and is
+       not affected. keeks 0.8.0's
        :meth:`keeks.multi_outcome.RepeatedMultiOutcomeSimulator.evaluate_strategy`
        credits the realized leg ``payoff * stake`` without debiting that
        leg's own stake, while every losing leg is charged its full stake. The
@@ -379,6 +415,41 @@ class MultiOutcomeBacktest:
         p_home = self._arena.expected_score(game["home"], game["away"])
         return one_x_two_probabilities(p_home, self._draw_rate)
 
+    @staticmethod
+    def _settle_recorded(
+        game: OneXTwoGameRecord,
+        observer: _SettlementObserver,
+        bankroll: BankRoll,
+        book: Tuple[float, float, float],
+        payoffs: Tuple[float, float, float],
+    ) -> None:
+        """Settles one game on its recorded leg with decimal-odds accounting.
+
+        Every staked leg is debited; the winning leg is credited
+        ``payoff * stake`` (net ``(payoff - 1) * stake``). A bankrupt bankroll
+        or an all-zero quote moves nothing and fires no settlement hook,
+        matching the simulator's skip rule.
+        """
+        total_funds = bankroll.total_funds
+        if total_funds <= 0:
+            return
+        observer.update_bankroll(total_funds)
+        fractions = _validated_fractions(observer.evaluate(book, total_funds))
+        if not any(fractions):
+            return
+
+        won_leg = _recorded_leg(game)
+        bettable_funds = bankroll.bettable_funds
+        stakes = [bettable_funds * fraction for fraction in fractions]
+        # Fractions sum to <= 1, but float noise must not trip BankRoll.bet's cap.
+        bankroll.bet(min(sum(stakes), bettable_funds))
+        bankroll.add_funds(payoffs[won_leg] * stakes[won_leg])
+        returns = tuple(
+            ((payoffs[leg] - 1.0) * stake if leg == won_leg else -stake) / total_funds
+            for leg, stake in enumerate(stakes)
+        )
+        observer.record_settlement(won_leg, returns)
+
     def _settle_game(
         self,
         game: OneXTwoGameRecord,
@@ -386,6 +457,7 @@ class MultiOutcomeBacktest:
         bankroll: BankRoll,
         period: int,
         game_seed: Optional[int],
+        settlement: str = "simulated",
     ) -> None:
         """Prices and settles one game, appending its ledger entry."""
         home, away = game["home"], game["away"]
@@ -414,22 +486,25 @@ class MultiOutcomeBacktest:
         }
         self.bet_history.append(record)
 
-        simulator = RepeatedMultiOutcomeSimulator(
-            payoffs=payoffs,
-            loss=1.0,
-            transaction_costs=0.0,
-            probabilities=book,
-            trials=1,
-            seed=game_seed,
-        )
         observer = _SettlementObserver(_reprice_for_game(strategy, payoffs), strategy)
 
-        # Read before the trial: the simulator stakes from the bettable funds
-        # as they stand when the trial begins, and nothing mutates the
-        # bankroll between here and the stake sizing inside evaluate_strategy.
+        # Read before the trial: stakes come from the bettable funds as they
+        # stand when the trial begins, and nothing mutates the bankroll between
+        # here and the stake sizing.
         bettable_funds = bankroll.bettable_funds
         try:
-            simulator.evaluate_strategy(observer, bankroll)
+            if settlement == "recorded":
+                self._settle_recorded(game, observer, bankroll, book, payoffs)
+            else:
+                simulator = RepeatedMultiOutcomeSimulator(
+                    payoffs=payoffs,
+                    loss=1.0,
+                    transaction_costs=0.0,
+                    probabilities=book,
+                    trials=1,
+                    seed=game_seed,
+                )
+                simulator.evaluate_strategy(observer, bankroll)
         except Exception as exc:
             record["error"] = str(exc)
             logger.error("Error settling 1X2 game %s vs %s: %s", home, away, exc)
@@ -466,6 +541,7 @@ class MultiOutcomeBacktest:
         bankroll: BankRoll,
         period_to_start_betting: int = 3,
         seed: Optional[int] = None,
+        settlement: str = "recorded",
     ) -> BankRoll:
         """Runs the 1X2 backtest, period by period.
 
@@ -489,12 +565,21 @@ class MultiOutcomeBacktest:
         :param period_to_start_betting: The last period that only builds
                                         ratings; real bets begin the period
                                         after it. Defaults to 3.
-        :param seed: Base seed for the per-game settlement streams. Each
-                     game's simulator is seeded ``seed + game_index`` in
-                     schedule order, so a seeded run replays identically.
+        :param seed: Base seed for the per-game settlement streams; only
+                     meaningful with ``settlement="simulated"``. Each game's
+                     simulator is seeded ``seed + game_index`` in schedule
+                     order, so a seeded run replays identically.
+        :param settlement: ``"recorded"`` (default) settles each game on the
+                           leg its recorded scores imply, so the run is
+                           deterministic and comparable with the binary
+                           backtest. ``"simulated"`` draws the leg from the
+                           model's own book through keeks' simulator and
+                           inherits its winner over-credit.
         :return: The bankroll, updated with the run's settlements.
+        :raises ValueError: If ``settlement`` is not ``"recorded"`` or ``"simulated"``.
         """
-        logger.info("Starting 1X2 backtest run.")
+        _require_settlement(settlement)
+        logger.info("Starting 1X2 backtest run (%s settlement).", settlement)
         self.bet_history = []
 
         if not isinstance(data, dict):
@@ -518,7 +603,7 @@ class MultiOutcomeBacktest:
                 rated_games.append(record)
                 if is_betting_period:
                     game_seed = seed + game_index if seed is not None else None
-                    self._settle_game(record, strategy, bankroll, period, game_seed)
+                    self._settle_game(record, strategy, bankroll, period, game_seed, settlement)
                 else:
                     logger.debug(
                         "Period %s: warm-up; %s vs %s is rated but not bet.",
