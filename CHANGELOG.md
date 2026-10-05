@@ -1,6 +1,16 @@
 Unreleased
 ==========
 
+**Changed (behaviour change):**
+ * `MultiOutcomeBacktest.run_explicit` now settles each 1X2 game against its **recorded result** by
+   default (`settlement="recorded"`), matching the binary `Backtest`: the realized leg comes from
+   `home_score`/`away_score`, stakes are debited and the winning leg is credited `payoff * stake`
+   directly on the bankroll. This bypasses keeks' simulator, so it is not affected by the winner
+   over-credit, and `pnl`/`roi` are comparable with the binary path. **The previous behaviour -- a
+   leg drawn from the model's own book -- is now `settlement="simulated"`** (`seed` is only
+   meaningful there); pass it to reproduce earlier 1X2 results. An unknown `settlement` value
+   raises `ValueError` before any rating or pricing work. The `bet_history` schema is unchanged.
+
 **Added:**
  * The 1X2 public surface -- `MultiOutcomeBacktest`, `one_x_two_probabilities`, and
    `OneXTwoGameRecord` -- is now available directly from `keeks_elote`.

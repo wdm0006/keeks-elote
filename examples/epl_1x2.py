@@ -10,10 +10,10 @@ home, draw, away -- so this example runs the multi-outcome flow
    probability that peaks at rating parity.
 2. Kelly sizing: :class:`keeks.multi_outcome.MultiOutcomeKellyCriterion`
    splits the stake across the three legs, priced with each game's own odds.
-3. Simulated settlement: a per-game ``RepeatedMultiOutcomeSimulator``
-   realizes exactly one leg per game from the model's own probabilities and
-   settles the staked legs through the bankroll; the recorded scores rate the
-   teams but never decide a bet.
+3. Recorded settlement: each game settles on the leg its recorded scores
+   imply (home win, draw, away win), debiting the stakes and crediting the
+   winning leg, as the binary backtest does. ``settlement="simulated"`` is
+   the opt-in alternative that draws the leg from the model's own book.
 4. Ledger: every game lands in ``bet_history`` with the book, the stake
    fractions, the stakes, the realized leg, and the bankroll around it, so
    ``pnl`` and ``roi`` reconcile against the closing balance.
@@ -111,13 +111,12 @@ def main() -> None:
     strategy = MultiOutcomeKellyCriterion(payoffs=(2.0, 3.0, 3.0), loss=1.0)
 
     backtest = MultiOutcomeBacktest(arena, draw_rate=DRAW_RATE)
-    logger.info("Running the 1X2 backtest (settlement is simulated from the model's own book).")
+    logger.info("Running the 1X2 backtest (settled against the recorded results).")
     backtest.run_explicit(
         periods,
         strategy,
         bankroll,
         period_to_start_betting=2,
-        seed=42,
     )
 
     # --- Summary ---

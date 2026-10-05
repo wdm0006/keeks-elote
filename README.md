@@ -181,9 +181,11 @@ loser. `keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest` backtests the w
 three-leg book -- home, draw, away -- through keeks' multi-outcome API: the arena's
 expected score expands into a full (home, draw, away) book with a draw probability that
 peaks at rating parity, a keeks multi-outcome strategy splits the stake across the legs
-at each game's own prices, and settlement is simulated -- one categorical draw per game
-realizes exactly one leg through `RepeatedMultiOutcomeSimulator`, while the recorded
-scores rate the teams (draws rate as draws, outcome 0.5) but never decide a bet.
+at each game's own prices, and each game settles against its recorded result -- the
+`home_score`/`away_score` pair realizes the home, draw, or away leg, matching the binary
+backtest. The same scores rate the teams (draws rate as draws, outcome 0.5). Pass
+`settlement="simulated"` for the opt-in projection mode, which instead draws one leg per
+game from the model's own book through `RepeatedMultiOutcomeSimulator`.
 
 ```python
 from keeks.bankroll import BankRoll
@@ -197,7 +199,6 @@ backtest.run_explicit(
     MultiOutcomeKellyCriterion(payoffs=(2.0, 3.0, 3.0), loss=1.0),
     bankroll,
     period_to_start_betting=2,
-    seed=42,                                    # settlement replays deterministically
 )
 pnl(backtest.bet_history)                       # net profit over the ledger
 ```
@@ -209,8 +210,11 @@ price is rated but not bet. `bet_history` records the book, the quoted stake fra
 the absolute stakes, the realized leg, and the bankroll reads around every game, so
 `pnl`/`roi` reconcile with the closing balance.
 
-**Known upstream over-credit: 1X2 P&L is inflated.** The arithmetic above reconciles,
-but the economics do not. keeks 0.8.0's `RepeatedMultiOutcomeSimulator.evaluate_strategy`
+Recorded settlement debits every stake and credits the winning leg `payoff * stake`
+(net `(payoff - 1) * stake`) directly on the bankroll, so `pnl`/`roi` are comparable with
+the binary `Backtest`'s and a fully hedged fair book returns exactly the bankroll.
+
+**`settlement="simulated"` only -- known upstream over-credit: 1X2 P&L is inflated.** keeks 0.8.0's `RepeatedMultiOutcomeSimulator.evaluate_strategy`
 credits the realized leg `payoff * stake` without debiting that leg's own stake, while
 every losing leg is charged its full stake -- so the winning leg is over-credited by
 exactly one stake unit and every `pnl`/`roi` number a 1X2 run reports is inflated by the
@@ -219,7 +223,7 @@ even, prints a risk-free 25-50% instead. The defect is in keeks and cannot be co
 here: the simulator rejects a payoffs mismatch between itself and the strategy, so there
 is no local repricing that hands it net odds while Kelly sizes from decimals. **1X2 P&L
 is therefore not comparable to the binary `Backtest`'s**, whose settlement debits each
-stake and is correct -- compare 1X2 runs only against other 1X2 runs. A characterization
+stake and is correct -- compare simulated 1X2 runs only against other simulated runs (`seed` is only meaningful in this mode). A characterization
 test pins today's upstream arithmetic so the change is loud when keeks fixes it.
 
 This flow uses keeks' `multi_outcome` module. The declared keeks >= 0.8.0 floor is

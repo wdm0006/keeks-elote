@@ -222,7 +222,12 @@ class TestExactlyOneSettlementLedger:
         backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
         bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
         backtest.run_explicit(
-            two_period_schedule(), FixedFractionStrategy(0.1), bankroll, period_to_start_betting=0, seed=seed
+            two_period_schedule(),
+            FixedFractionStrategy(0.1),
+            bankroll,
+            period_to_start_betting=0,
+            seed=seed,
+            settlement="simulated",
         )
         return backtest, bankroll
 
@@ -231,6 +236,9 @@ class TestExactlyOneSettlementLedger:
         assert [record["period"] for record in backtest.bet_history] == [1, 1]
 
     def test_known_ledger_settlement_accounting(self):
+        # Simulated settlement only: the expected values below encode the keeks
+        # winner over-credit (see TestUpstreamSettlementOverCredit). The recorded
+        # path is covered by TestRecordedSettlement.
         schedule = two_period_schedule()
         warm_up_games = sum(len(games) for period, games in schedule.items() if period <= 0)
         backtest, bankroll = self.run(seed=2026)
@@ -320,7 +328,9 @@ class TestFlowEndToEnd:
         backtest = MultiOutcomeBacktest(create_arena("elo"), draw_rate=0.25)
         bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=0.5, max_draw_down=None)
         strategy = MultiOutcomeKellyCriterion(payoffs=(2.0, 3.0, 3.0), loss=1.0)
-        backtest.run_explicit(self.SCHEDULE, strategy, bankroll, period_to_start_betting=1, seed=seed)
+        backtest.run_explicit(
+            self.SCHEDULE, strategy, bankroll, period_to_start_betting=1, seed=seed, settlement="simulated"
+        )
         return backtest, bankroll, strategy
 
     def test_caller_strategy_is_never_reassigned_odds(self):
@@ -375,6 +385,7 @@ class TestRatingAndLedgerBoundaries:
             BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None),
             period_to_start_betting=10,
             seed=1,
+            settlement="simulated",
         )
         assert len(arena.matchups) == 3
         # (home, away, attributes, match_time, outcome, scores) -- a draw
@@ -395,6 +406,7 @@ class TestRatingAndLedgerBoundaries:
             BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None),
             period_to_start_betting=10,
             seed=1,
+            settlement="simulated",
         )
         assert arena.matchups == []
         assert backtest.bet_history == []
@@ -408,6 +420,7 @@ class TestRatingAndLedgerBoundaries:
             BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None),
             period_to_start_betting=0,
             seed=1,
+            settlement="simulated",
         )
         assert len(arena.matchups) == 1
         assert backtest.bet_history == []
@@ -421,6 +434,7 @@ class TestRatingAndLedgerBoundaries:
             bankroll,
             period_to_start_betting=0,
             seed=1,
+            settlement="simulated",
         )
         assert len(backtest.bet_history) == 2
         for record in backtest.bet_history:
@@ -440,6 +454,7 @@ class TestRatingAndLedgerBoundaries:
             bankroll,
             period_to_start_betting=0,
             seed=1,
+            settlement="simulated",
         )
         assert len(backtest.bet_history) == 1
         record = backtest.bet_history[0]
@@ -452,3 +467,74 @@ class TestRatingAndLedgerBoundaries:
     def test_draw_rate_is_validated_at_construction(self):
         with pytest.raises(ValueError):
             MultiOutcomeBacktest(StubArena(), draw_rate=1.5)
+
+
+class TestRecordedSettlement:
+    """Default settlement against each game's recorded scores, with exact balances."""
+
+    def run(self, schedule, strategy, seed=None, **kwargs):
+        backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        backtest.run_explicit(schedule, strategy, bankroll, period_to_start_betting=0, seed=seed, **kwargs)
+        return backtest, bankroll
+
+    @staticmethod
+    def single(home_score, away_score, odds=(2.0, 2.0, 2.0)):
+        return {
+            0: [game("A", "B", 1, 0)],
+            1: [game("C", "D", home_score, away_score, *odds)],
+        }
+
+    @pytest.mark.parametrize(
+        "scores, leg",
+        [((2, 0), 0), ((1, 1), 1), ((0, 3), 2)],
+    )
+    def test_realized_leg_follows_recorded_scores(self, scores, leg):
+        backtest, _ = self.run(self.single(*scores), FixedFractionStrategy(0.05))
+        assert backtest.bet_history[0]["won_leg"] == leg
+
+    @pytest.mark.parametrize(
+        "scores, expected",
+        [((1, 0), 1100.0), ((0, 0), 900.0)],
+    )
+    def test_stake_100_at_decimal_2_wins_or_loses_exactly(self, scores, expected):
+        # 10% on the home leg only, priced 2.0: stake 100, net +100 / -100.
+        backtest, bankroll = self.run(self.single(*scores), FixedVectorStrategy((0.1, 0.0, 0.0)))
+        record = backtest.bet_history[0]
+        assert bankroll.total_funds == pytest.approx(expected)
+        assert record["stakes"] == pytest.approx((100.0, 0.0, 0.0))
+        assert record["profit"] == pytest.approx(expected - STARTING_FUNDS)
+        assert record["bankroll_after"] == pytest.approx(expected)
+        assert record["returns"] == pytest.approx(((expected - STARTING_FUNDS) / 1000.0, 0.0, 0.0))
+
+    @pytest.mark.parametrize("scores", [(1, 0), (1, 1), (0, 1)])
+    def test_fair_dutch_book_returns_exactly_the_bankroll(self, scores):
+        backtest, bankroll = self.run(
+            self.single(*scores, odds=(2.0, 4.0, 4.0)), FixedVectorStrategy((0.5, 0.25, 0.25))
+        )
+        assert bankroll.total_funds == pytest.approx(STARTING_FUNDS)
+        assert backtest.bet_history[0]["profit"] == pytest.approx(0.0)
+
+    def test_seed_does_not_change_the_result(self):
+        schedule = two_period_schedule()
+        results = {self.run(schedule, FixedFractionStrategy(0.1), seed=seed)[1].total_funds for seed in (None, 1, 2026)}
+        assert len(results) == 1
+
+    def test_zero_quote_moves_nothing(self):
+        backtest, bankroll = self.run(self.single(1, 0), FixedVectorStrategy((0.0, 0.0, 0.0)))
+        assert backtest.bet_history[0]["skipped_zero_stake"] is True
+        assert bankroll.total_funds == STARTING_FUNDS
+
+    def test_invalid_quote_is_ledgered_and_skipped(self):
+        backtest, bankroll = self.run(self.single(1, 0), FixedVectorStrategy((0.9, 0.9, 0.0)))
+        assert backtest.bet_history[0]["error"] is not None
+        assert bankroll.total_funds == STARTING_FUNDS
+
+    def test_unknown_settlement_raises_before_any_work(self):
+        arena = StubArena()
+        backtest = MultiOutcomeBacktest(arena)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        with pytest.raises(ValueError, match="settlement"):
+            backtest.run_explicit(two_period_schedule(), FixedFractionStrategy(), bankroll, settlement="bogus")
+        assert arena.matchups == []
+        assert backtest.bet_history == []
