@@ -7,20 +7,27 @@ where :class:`~keeks_elote.backtest.Backtest` prices a single binary wager per
 game.
 
 Two semantics differ from the binary backtest and are worth naming. **Settlement
-is simulated, not recorded**: a categorical draw realizes one leg from the model's
-own probabilities, while the recorded scores rate the competitors but never decide
-a settled bet -- this flow is a projection exercise, pricing the strategy the
-model's own world. And **payoffs are decimal odds**: keeks' multi-outcome contract
-quotes each leg's payoff as decimal odds (a winning leg pays ``payoff * stake``,
-stake included), while the binary backtest's ledger records ``payoff`` as decimal
-odds minus one -- the same word means different things one module away.
+is recorded by default**: the realized leg comes from the game's
+``home_score``/``away_score`` -- the same convention as the binary backtest --
+so a run is deterministic and measures the model's prices against what actually
+happened; opt-in ``settlement="simulated"`` instead draws the leg from the
+model's own book through keeks' one-trial simulator, a projection exercise in
+the model's own world whose outcome depends on the seed. And **payoffs are
+decimal odds**: keeks' multi-outcome contract quotes each leg's payoff as
+decimal odds (a winning leg pays ``payoff * stake``, stake included), while
+the binary backtest's ledger records ``payoff`` as decimal odds minus one --
+the same word means different things one module away.
 
 Rating updates treat a draw as a draw: the arena receives the recorded result as
 outcome 1.0 / 0.0 / 0.5 from the home perspective, cross-checked against the score
-pair. keeks 0.9.0 fixed the multi-outcome settlement over-credit that inflated
-every 1X2 ``pnl``/``roi`` number (a fully hedged fair book used to print a
-risk-free 25-50% instead of breaking even), so 1X2 P&L is directly comparable to
-the binary backtest's.
+pair. Both settlement paths use keeks 0.9.0's corrected accounting -- the
+realized leg is credited ``payoff * stake`` (net ``(payoff - 1) * stake``) and
+every losing leg is charged its full stake -- so a fully hedged book at exactly
+fair odds breaks even. (keeks 0.8.0 over-credited the realized leg by one stake
+unit, which inflated every 1X2 ``pnl``/``roi`` number -- a fully hedged fair book
+used to print a risk-free 25-50% instead of breaking even; the defect was fixed
+in the 0.9.0 breaking sweep, so 1X2 P&L is directly comparable to the binary
+backtest's from this release on.)
 
 Leg order
 ---------
@@ -58,9 +65,12 @@ The MultiOutcomeBacktest class
 
    Backtests 1X2 betting over an elote arena. Each game carries its own
    probability book and its own prices, so each game gets a freshly constructed
-   strategy (per-game repricing, the pattern the binary backtest established) and
-   its own one-trial simulator instance seeded ``seed + game_index`` in schedule
-   order -- a seeded run replays identically; ``seed=None`` promises no replay.
+   strategy (per-game repricing, the pattern the binary backtest established).
+   With ``settlement="recorded"`` (the default) each game settles directly on
+   the bankroll, on the leg its scores imply; with ``settlement="simulated"``
+   each game is settled through its own one-trial keeks simulator instance
+   seeded ``seed + game_index`` in schedule order -- a seeded run replays
+   identically, and ``seed=None`` promises no replay.
 
    :param arena: An initialized arena satisfying the
                  :class:`~keeks_elote.rating_arena.RatingArena` protocol;
@@ -82,7 +92,7 @@ The MultiOutcomeBacktest class
       to cents, so ``profit`` agrees with the exact settlement returns only to
       within that cent.
 
-   .. method:: run_explicit(data, strategy, bankroll, period_to_start_betting=3, seed=None)
+   .. method:: run_explicit(data, strategy, bankroll, period_to_start_betting=3, seed=None, settlement="recorded")
 
       Runs the 1X2 backtest, period by period: price and settle every game
       against the ratings as they stand (when the period is a betting period),
@@ -104,9 +114,19 @@ The MultiOutcomeBacktest class
                        per settled game.
       :param bankroll: A ``keeks.bankroll.BankRoll``, updated in place.
       :param period_to_start_betting: The last period that only builds ratings.
-      :param seed: Base seed for the per-game settlement streams; each game's
-                   simulator is seeded ``seed + game_index`` in schedule order.
+      :param seed: Base seed for the per-game settlement streams; only
+                   meaningful with ``settlement="simulated"``. Each game's
+                   simulator is seeded ``seed + game_index`` in schedule
+                   order, so a seeded run replays identically.
+      :param settlement: ``"recorded"`` (default) settles each game on the leg
+                         its recorded scores imply, so the run is
+                         deterministic and comparable with the binary
+                         backtest. ``"simulated"`` draws the leg from the
+                         model's own book through keeks' simulator.
       :returns: The bankroll, updated with the run's settlements.
+
+      :raises ValueError: If ``settlement`` is not ``"recorded"`` or
+                          ``"simulated"``.
 
       Games that cannot be rated (missing labels or scores) or cannot be priced
       (a leg with no price, or a price that fits no format) are warned about and
