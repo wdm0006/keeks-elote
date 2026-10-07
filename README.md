@@ -226,6 +226,17 @@ drifts again.
 
 This flow uses keeks' `multi_outcome` module, installed with the package.
 
+## Documentation
+
+Full documentation — worked examples with plots and a hand-written API reference —
+lives in `docs/` and is published to GitHub Pages on merge to master. To build it
+locally:
+
+```bash
+uv pip install -r docs/requirements.txt
+python -m sphinx -W --keep-going -b html docs/source docs/build/html
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

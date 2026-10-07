@@ -1,0 +1,3 @@
+sphinx>=6.1.3
+docutils>=0.19
+wabi-sphinx-theme @ git+https://github.com/wdm0006/mcw-sphinx-theme.git
