@@ -3,7 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from keeks_elote.data_handling import load_csv, load_dataframe, prepare_data
+from keeks_elote.data_handling import (
+    load_csv,
+    load_dataframe,
+    load_one_x_two_csv,
+    load_one_x_two_dataframe,
+    prepare_data,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -244,4 +250,179 @@ def test_load_dataframe_with_real_pandas():
     assert load_dataframe(df) == {
         1: [{"period": 1, "winner": "Alpha", "loser": "Beta", "winner_odds": 2.5}],
         2: [{"period": 2, "winner": "Delta", "loser": "Epsilon"}],
+    }
+
+
+# --- 1X2 loaders ---------------------------------------------------------------
+
+_ONE_X_TWO_HEADER = ["period", "home", "away", "home_score", "away_score", "home_odds", "draw_odds", "away_odds"]
+
+
+def _write_csv(tmp_path, header, rows):
+    path = tmp_path / "games.csv"
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(header)
+        writer.writerows(rows)
+    return path
+
+
+def test_load_one_x_two_csv_parses_values_and_groups_by_period(tmp_path):
+    path = _write_csv(
+        tmp_path,
+        [" period", "home ", "away", "home_score", "away_score", "home_odds ", "draw_odds", "away_odds", "date"],
+        [
+            [1, " Alpha ", "Beta", 2, 2, 2.1, 3.4, 3.6, "2024-01-01"],
+            [1, "Gamma", "Delta", 0, 1, "", "", "", ""],
+            [2, "Beta", "Alpha", 1.0, 0.0, 1.9, 3.5, 4.2, ""],
+        ],
+    )
+    assert load_one_x_two_csv(path) == {
+        1: [
+            {
+                "period": 1,
+                "home": "Alpha",
+                "away": "Beta",
+                "home_score": 2.0,
+                "away_score": 2.0,
+                "home_odds": 2.1,
+                "draw_odds": 3.4,
+                "away_odds": 3.6,
+                "date": "2024-01-01",
+            },
+            {"period": 1, "home": "Gamma", "away": "Delta", "home_score": 0.0, "away_score": 1.0},
+        ],
+        2: [
+            {
+                "period": 2,
+                "home": "Beta",
+                "away": "Alpha",
+                "home_score": 1.0,
+                "away_score": 0.0,
+                "home_odds": 1.9,
+                "draw_odds": 3.5,
+                "away_odds": 4.2,
+            }
+        ],
+    }
+
+
+def test_load_one_x_two_csv_odds_columns_are_optional(tmp_path):
+    path = _write_csv(tmp_path, _ONE_X_TWO_HEADER[:5], [[1, "Alpha", "Beta", 1, 0]])
+    assert load_one_x_two_csv(path) == {
+        1: [{"period": 1, "home": "Alpha", "away": "Beta", "home_score": 1.0, "away_score": 0.0}]
+    }
+
+
+def test_load_one_x_two_csv_missing_required_column_raises(tmp_path):
+    header = [c for c in _ONE_X_TWO_HEADER if c != "away_score"]
+    path = _write_csv(tmp_path, header, [[1, "Alpha", "Beta", 1, 2.0, 3.0, 4.0]])
+    with pytest.raises(ValueError, match=r"missing required column\(s\) away_score"):
+        load_one_x_two_csv(path)
+
+
+def test_load_one_x_two_csv_non_numeric_score_drops_row_with_warning(tmp_path, caplog):
+    path = _write_csv(
+        tmp_path,
+        _ONE_X_TWO_HEADER,
+        [[1, "Alpha", "Beta", "n/a", 0, 2.0, 3.0, 4.0], [1, "Gamma", "Delta", 1, 1, 2.0, 3.0, 4.0]],
+    )
+    with caplog.at_level("WARNING"):
+        result = load_one_x_two_csv(path)
+    assert result == {
+        1: [
+            {
+                "period": 1,
+                "home": "Gamma",
+                "away": "Delta",
+                "home_score": 1.0,
+                "away_score": 1.0,
+                "home_odds": 2.0,
+                "draw_odds": 3.0,
+                "away_odds": 4.0,
+            }
+        ]
+    }
+    assert "could not parse 'n/a'" in caplog.text
+    assert "dropping row without a usable home_score" in caplog.text
+
+
+def test_load_one_x_two_csv_unparseable_odds_drop_only_the_field(tmp_path):
+    path = _write_csv(tmp_path, _ONE_X_TWO_HEADER, [[1, "Alpha", "Beta", 1, 0, "evens", 3.0, 4.0]])
+    assert load_one_x_two_csv(path) == {
+        1: [
+            {
+                "period": 1,
+                "home": "Alpha",
+                "away": "Beta",
+                "home_score": 1.0,
+                "away_score": 0.0,
+                "draw_odds": 3.0,
+                "away_odds": 4.0,
+            }
+        ]
+    }
+
+
+def test_load_one_x_two_csv_missing_label_drops_row_and_bad_period_raises(tmp_path):
+    path = _write_csv(tmp_path, _ONE_X_TWO_HEADER, [[1, "", "Beta", 1, 0, "", "", ""]])
+    assert load_one_x_two_csv(path) == {}
+    path = _write_csv(tmp_path, _ONE_X_TWO_HEADER, [["soon", "Alpha", "Beta", 1, 0, "", "", ""]])
+    with pytest.raises(ValueError, match="period must be an integer"):
+        load_one_x_two_csv(path)
+
+
+def test_load_one_x_two_dataframe_matches_csv(tmp_path):
+    rows = [
+        [1, "Alpha", "Beta", 2, 2, 2.1, 3.4, 3.6],
+        [1, "Gamma", "Delta", 0, 1, "", "", ""],
+        [2, "Beta", "Alpha", 1, 0, 1.9, 3.5, 4.2],
+    ]
+    path = _write_csv(tmp_path, _ONE_X_TWO_HEADER, rows)
+    records = [{c: (v if v != "" else None) for c, v in zip(_ONE_X_TWO_HEADER, row)} for row in rows]
+    df = _FakeDataFrame(_ONE_X_TWO_HEADER, records)
+    assert load_one_x_two_dataframe(df) == load_one_x_two_csv(path)
+
+
+def test_load_one_x_two_dataframe_strips_padded_names_and_treats_nan_as_absent():
+    df = _FakeDataFrame(
+        [" period", "home", "away", "home_score", "away_score", "home_odds ", "draw_odds"],
+        [
+            {
+                " period": 1,
+                "home": "Alpha",
+                "away": "Beta",
+                "home_score": 1,
+                "away_score": 0,
+                "home_odds ": 2.5,
+                "draw_odds": float("nan"),
+            }
+        ],
+    )
+    assert load_one_x_two_dataframe(df) == {
+        1: [{"period": 1, "home": "Alpha", "away": "Beta", "home_score": 1.0, "away_score": 0.0, "home_odds": 2.5}]
+    }
+
+
+def test_load_one_x_two_dataframe_missing_required_column_raises():
+    df = _FakeDataFrame(["period", "home", "away", "home_score"], [])
+    with pytest.raises(ValueError, match=r"missing required column\(s\) away_score"):
+        load_one_x_two_dataframe(df)
+
+
+def test_load_one_x_two_dataframe_with_real_pandas():
+    pandas = pytest.importorskip("pandas")
+    df = pandas.DataFrame(
+        {
+            "period": [1, 2],
+            "home": ["Alpha", "Beta"],
+            "away": ["Beta", "Alpha"],
+            "home_score": [1, 2],
+            "away_score": [1, 0],
+            "home_odds": [2.5, float("nan")],
+        }
+    )
+    assert load_one_x_two_dataframe(df) == {
+        1: [{"period": 1, "home": "Alpha", "away": "Beta", "home_score": 1.0, "away_score": 1.0, "home_odds": 2.5}],
+        2: [{"period": 2, "home": "Beta", "away": "Alpha", "home_score": 2.0, "away_score": 0.0}],
     }

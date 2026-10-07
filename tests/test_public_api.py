@@ -34,6 +34,8 @@ PINNED_SURFACE = [
     "edge",
     "load_csv",
     "load_dataframe",
+    "load_one_x_two_csv",
+    "load_one_x_two_dataframe",
     "one_x_two_probabilities",
     "pnl",
     "prepare_data",

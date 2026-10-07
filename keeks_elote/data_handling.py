@@ -4,9 +4,9 @@ import math
 import numbers
 import operator
 import os
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
-from keeks_elote.types import GameRecord
+from keeks_elote.types import GameRecord, OneXTwoGameRecord
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +86,12 @@ _REQUIRED_COLUMNS = ("period", "winner", "loser")
 
 #: Optional columns parsed as numbers when present.
 _NUMERIC_COLUMNS = ("winner_odds", "loser_odds", "winner_score", "loser_score")
+
+#: Columns every 1X2 input must carry; the odds are optional.
+_ONE_X_TWO_REQUIRED_COLUMNS = ("period", "home", "away", "home_score", "away_score")
+
+#: Optional 1X2 columns parsed as numbers when present.
+_ONE_X_TWO_ODDS_COLUMNS = ("home_odds", "draw_odds", "away_odds")
 
 
 def _is_missing(value: Any) -> bool:
@@ -176,23 +182,93 @@ def _record_from_row(row: Mapping[str, Any], where: str) -> Optional[Tuple[int, 
     return period, record
 
 
-def _require_columns(columns: List[str], source: str) -> None:
+def _one_x_two_record_from_row(row: Mapping[str, Any], where: str) -> Optional[Tuple[int, Dict[str, Any]]]:
+    """Normalizes one raw 1X2 row into ``(period, record)``, or ``None`` when it is dropped.
+
+    A row without ``home``/``away`` labels or without parseable finite scores
+    cannot be rated, so it is dropped with a warning (the backtest would skip it
+    anyway). Odds follow the binary loader's rule: absent cells are quiet,
+    unparseable ones drop just that field.
+    """
+    period = _parse_period(row.get("period"), where)
+    home = row.get("home")
+    away = row.get("away")
+    if isinstance(home, str):
+        home = home.strip()
+    if isinstance(away, str):
+        away = away.strip()
+    if _is_missing(home) or _is_missing(away):
+        logger.warning(f"{where}: dropping row with missing home/away labels (home={home!r}, away={away!r}).")
+        return None
+
+    scores = {}
+    for column in ("home_score", "away_score"):
+        number = _parse_numeric(row.get(column), f"{where} ({column})")
+        if number is None:
+            logger.warning(f"{where}: dropping row without a usable {column} (got {row.get(column)!r}).")
+            return None
+        scores[column] = number
+
+    record: Dict[str, Any] = {"period": period, "home": home, "away": away, **scores}
+    for column in _ONE_X_TWO_ODDS_COLUMNS:
+        number = _parse_numeric(row.get(column), f"{where} ({column})")
+        if number is not None:
+            record[column] = number
+    for key, value in row.items():
+        if key in record or key in _ONE_X_TWO_ODDS_COLUMNS or _is_missing(value):
+            continue
+        record[key] = value
+    return period, record
+
+
+def _require_columns(columns: List[str], source: str, required: Tuple[str, ...] = _REQUIRED_COLUMNS) -> None:
     """Raises :class:`ValueError` when the input lacks a required column."""
-    missing = [column for column in _REQUIRED_COLUMNS if column not in columns]
+    missing = [column for column in required if column not in columns]
     if missing:
         raise ValueError(f"{source}: missing required column(s) {', '.join(missing)}; found {columns}.")
 
 
-def _periods_from_rows(rows: Iterable[Tuple[str, Mapping[str, Any]]]) -> Dict[int, List[Dict[str, Any]]]:
+def _periods_from_rows(
+    rows: Iterable[Tuple[str, Mapping[str, Any]]],
+    build: Callable[[Mapping[str, Any], str], Optional[Tuple[int, Dict[str, Any]]]] = _record_from_row,
+) -> Dict[int, List[Dict[str, Any]]]:
     """Groups ``(where, row)`` pairs into the period-keyed structure, in input order."""
     periods: Dict[int, List[Dict[str, Any]]] = {}
     for where, row in rows:
-        parsed = _record_from_row(row, where)
+        parsed = build(row, where)
         if parsed is None:
             continue
         period, record = parsed
         periods.setdefault(period, []).append(record)
     return periods
+
+
+def _read_csv_rows(path: Union[str, os.PathLike], required: Tuple[str, ...]) -> List[Tuple[str, Mapping[str, Any]]]:
+    """Reads a CSV into ``(where, row)`` pairs with stripped column names, checking ``required`` columns."""
+    with open(path, "r", newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle, restval="")
+        fieldnames = [name.strip() for name in (reader.fieldnames or [])]
+        reader.fieldnames = fieldnames
+        _require_columns(fieldnames, str(path), required)
+        rows: List[Tuple[str, Mapping[str, Any]]] = []
+        for row in reader:
+            where = f"{path} line {reader.line_num}"
+            overflow = row.pop(None, None)  # fields beyond the header, if the row is ragged
+            if overflow is not None:
+                logger.warning(f"{where}: row has more fields than the header; ignoring the extras {overflow!r}.")
+            rows.append((where, row))
+    return rows
+
+
+def _read_dataframe_rows(df: Any, required: Tuple[str, ...]) -> List[Tuple[str, Mapping[str, Any]]]:
+    """Reads a DataFrame into ``(where, row)`` pairs with stripped keys, checking ``required`` columns."""
+    _require_columns([str(column).strip() for column in df.columns], "data frame", required)
+    # Strip the row keys the same way load_csv reassigns stripped fieldnames onto its
+    # reader, so the validator above and the reader below see one mapping.
+    return [
+        (f"row {index}", {str(key).strip(): value for key, value in row.items()})
+        for index, row in enumerate(df.to_dict(orient="records"))
+    ]
 
 
 def load_csv(path: Union[str, os.PathLike]) -> Dict[int, List[GameRecord]]:
@@ -226,18 +302,7 @@ def load_csv(path: Union[str, os.PathLike]) -> Dict[int, List[GameRecord]]:
     :raises ValueError: If a required column is missing, or a row's period is
         missing or not an integer.
     """
-    with open(path, "r", newline="", encoding="utf-8-sig") as handle:
-        reader = csv.DictReader(handle, restval="")
-        fieldnames = [name.strip() for name in (reader.fieldnames or [])]
-        reader.fieldnames = fieldnames
-        _require_columns(fieldnames, str(path))
-        rows: List[Tuple[str, Mapping[str, Any]]] = []
-        for row in reader:
-            where = f"{path} line {reader.line_num}"
-            overflow = row.pop(None, None)  # fields beyond the header, if the row is ragged
-            if overflow is not None:
-                logger.warning(f"{where}: row has more fields than the header; ignoring the extras {overflow!r}.")
-            rows.append((where, row))
+    rows = _read_csv_rows(path, _REQUIRED_COLUMNS)
     return cast(Dict[int, List[GameRecord]], _periods_from_rows(rows))
 
 
@@ -262,11 +327,46 @@ def load_dataframe(df: Any) -> Dict[int, List[GameRecord]]:
     :raises ValueError: If a required column is missing, or a row's period is
         missing or not an integer.
     """
-    _require_columns([str(column).strip() for column in df.columns], "data frame")
-    # Strip the row keys the same way load_csv reassigns stripped fieldnames onto its
-    # reader, so the validator above and the reader below see one mapping.
-    rows = [
-        (f"row {index}", {str(key).strip(): value for key, value in row.items()})
-        for index, row in enumerate(df.to_dict(orient="records"))
-    ]
+    rows = _read_dataframe_rows(df, _REQUIRED_COLUMNS)
     return cast(Dict[int, List[GameRecord]], _periods_from_rows(rows))
+
+
+def load_one_x_two_csv(path: Union[str, os.PathLike]) -> Dict[int, List[OneXTwoGameRecord]]:
+    """Loads period-keyed 1X2 (home / draw / away) game data from a CSV file.
+
+    The file needs ``period``, ``home``, ``away``, ``home_score`` and
+    ``away_score`` columns; optional ``home_odds``/``draw_odds``/``away_odds``
+    prices are parsed as numbers and any further columns pass through onto the
+    record. Rules match :func:`load_csv`: padded column names are stripped,
+    blank/NaN cells are absent, an unparseable odds cell drops just that field
+    (with a warning), and a ``period`` that is missing or not an integer raises
+    :class:`ValueError`. A row without ``home``/``away`` labels or without a
+    parseable finite score cannot be rated and is dropped with a warning.
+
+    :param path: Path of the CSV file (UTF-8; a leading BOM is tolerated).
+    :type path: Union[str, os.PathLike]
+    :return: The loaded data keyed by period, ready for
+        :meth:`~keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest.run_explicit`.
+    :rtype: Dict[int, List[OneXTwoGameRecord]]
+    :raises ValueError: If a required column is missing, or a row's period is
+        missing or not an integer.
+    """
+    rows = _read_csv_rows(path, _ONE_X_TWO_REQUIRED_COLUMNS)
+    return cast(Dict[int, List[OneXTwoGameRecord]], _periods_from_rows(rows, _one_x_two_record_from_row))
+
+
+def load_one_x_two_dataframe(df: Any) -> Dict[int, List[OneXTwoGameRecord]]:
+    """Loads period-keyed 1X2 game data from a DataFrame.
+
+    The DataFrame counterpart of :func:`load_one_x_two_csv`, with the same
+    duck-typed frame contract (and the same semantics) as :func:`load_dataframe`.
+
+    :param df: A ``pandas.DataFrame`` shaped like :func:`load_one_x_two_csv`'s file.
+    :type df: Any
+    :return: The loaded data keyed by period.
+    :rtype: Dict[int, List[OneXTwoGameRecord]]
+    :raises ValueError: If a required column is missing, or a row's period is
+        missing or not an integer.
+    """
+    rows = _read_dataframe_rows(df, _ONE_X_TWO_REQUIRED_COLUMNS)
+    return cast(Dict[int, List[OneXTwoGameRecord]], _periods_from_rows(rows, _one_x_two_record_from_row))

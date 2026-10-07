@@ -188,6 +188,11 @@ data = load_csv("data/epl_2023_24.csv")   # {1: [{...}, ...], 2: [...], ...}
 data = load_dataframe(df)                 # same shape, from a DataFrame
 ```
 
+For the 1X2 flow, `load_one_x_two_csv`/`load_one_x_two_dataframe` follow the same rules over
+`period`, `home`, `away`, `home_score`, `away_score` (required) and
+`home_odds`/`draw_odds`/`away_odds` (optional) columns; a row without labels or a numeric
+score is dropped with a warning.
+
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
 college-football data, [`examples/cfb_weekly_portfolio.py`](examples/cfb_weekly_portfolio.py)
 for the same season replayed as weekly portfolios -- each week's slate of games sized as one

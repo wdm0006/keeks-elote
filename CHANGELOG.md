@@ -1,14 +1,16 @@
 Unreleased
-==========
 
 **Added:**
  * `score_projections(projections, data)` scores `Backtest.run_and_project` forecasts against
    the recorded results: `n`, `skipped`, `accuracy`, `log_loss`, `brier`, and the raw
    `min_probability`/`max_probability` (so a reader can see whether the log-loss clamp
    binds). Projections with no matching recorded game are counted in `skipped`.
+ * `load_one_x_two_csv` / `load_one_x_two_dataframe`: loaders for the 1X2 flow returning
+   `Dict[int, List[OneXTwoGameRecord]]`, with the binary loaders' column-name stripping,
+   blank/NaN handling and period parsing. `examples/epl_1x2.py` now uses the loader
+   instead of its hand-rolled parser.
 
 v0.4.0 — 2026-10-05
-===================
 
 **Added:**
  * The weekly-portfolio layer: `WeeklyPortfolioBacktest` (`keeks_elote.portfolio_backtest`,
@@ -66,7 +68,6 @@ v0.4.0 — 2026-10-05
     way, so the two loaders now agree.
 
 v0.3.0 — 2026-09-08
-===================
 
 The Phase 3 deepening of the surface, complete: the odds and edge layer, the `create_arena`
 factory and hidden helpers on the package root, CSV/DataFrame ingestion with a second
