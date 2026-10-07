@@ -1,0 +1,401 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Backtest &#8212; Keeks-Elote</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=30d13653" />
+    <link rel="stylesheet" type="text/css" href="_static/css/wabi.css?v=9adde7c3" />
+    <script src="_static/documentation_options.js?v=6c02275b"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Multi-outcome backtest" href="multi_outcome_backtest.html" />
+    <link rel="prev" title="One week, one portfolio decision" href="cfb_weekly_portfolio.html" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+
+
+
+<meta name="description" content="Backtest - keeks-elote documentation">
+
+
+
+
+
+
+
+
+
+<meta property="og:title" content="Backtest">
+<meta property="og:description" content="Backtest - keeks-elote documentation">
+<meta property="og:type" content="website">
+
+<meta property="og:url" content="https://mcginniscommawill.com/backtest.html">
+
+
+<meta property="og:site_name" content="keeks-elote">
+
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Backtest">
+<meta name="twitter:description" content="Backtest - keeks-elote documentation">
+
+<meta name="twitter:site" content="@willmcginniser">
+
+
+
+
+
+<link rel="canonical" href="https://mcginniscommawill.com/backtest.html">
+
+
+ 
+
+  </head><body>
+<header class="header">
+  <div class="header__inner">
+    
+    <a href="https://mcginniscommawill.com" class="header__logo">
+      McGinnis, Will
+    </a>
+
+    
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </svg>
+    </button>
+
+    
+    <nav class="nav" role="navigation">
+      
+      
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/guides/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Guides
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/topics/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Topics
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/posts/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Blog
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/about/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            About
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/coffee/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Free Coffee
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/oss/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            OSS
+          </a>
+        
+      
+
+      
+      
+      <a href="index.html" class="nav__link nav__link--active">
+        Docs
+      </a>
+      
+    </nav>
+  </div>
+</header>
+
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <div class="breadcrumbs__inner">
+    
+    <a href="https://mcginniscommawill.com">Home</a>
+    <span class="breadcrumbs__separator">/</span>
+    
+    <a href="index.html">Docs</a>
+    
+    
+    <span class="breadcrumbs__separator">/</span>
+    <span>Backtest</span>
+    
+  </div>
+</nav>
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="backtest">
+<h1>Backtest<a class="headerlink" href="#backtest" title="Link to this heading">¶</a></h1>
+<p>The per-bet engine: <code class="docutils literal notranslate"><span class="pre">keeks_elote.backtest</span></code> prices a single wager per game and
+settles it against the game’s recorded result.</p>
+<p><code class="xref py py-class docutils literal notranslate"><span class="pre">Backtest</span></code> walks a period-keyed schedule in order. Each period, it first
+executes the bets priced in the previous period, then rates the period’s recorded
+results through the arena, then prices the next period’s games against those
+ratings – so a week’s pricing never sees its own results. Both sides of a priced
+game are candidates (each at its posted price), every bet is sized from one
+snapshot of the opening bankroll so wagers inside a period do not compound off
+each other, and a period’s total exposure is capped by the bankroll’s
+<code class="docutils literal notranslate"><span class="pre">percent_bettable</span></code>: requested stakes that exceed the budget are scaled down
+proportionally, preserving the strategy’s relative sizing.</p>
+<p>The pricing is per-bet by fresh construction: each candidate is quoted through a
+newly built strategy carrying that game’s payoff and odds, so strategies never
+carry state between pricing calls inside a period. Strategies that maintain state
+through keeks’ <code class="docutils literal notranslate"><span class="pre">record_settlement(won,</span> <span class="pre">realized_returns)</span></code> hook are notified of
+every bet the run actually settles – on the instance passed in – so adaptive
+strategies (<code class="docutils literal notranslate"><span class="pre">DynamicBankrollManagement</span></code>, for example) update as the run
+progresses.</p>
+<section id="the-backtest-class">
+<h2>The Backtest class<a class="headerlink" href="#the-backtest-class" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="keeks_elote.backtest.Backtest">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">keeks_elote.backtest.</span></span><span class="sig-name descname"><span class="pre">Backtest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arena</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.Backtest" title="Link to this definition">¶</a></dt>
+<dd><p>Runs per-bet backtests over an elote arena.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>arena</strong> – An initialized arena satisfying the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">RatingArena</span></code> protocol;
+<a class="reference internal" href="arena_factory.html#keeks_elote.arena_factory.create_arena" title="keeks_elote.arena_factory.create_arena"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_arena()</span></code></a> builds one.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="keeks_elote.backtest.Backtest.bet_history">
+<span class="sig-name descname"><span class="pre">bet_history</span></span><a class="headerlink" href="#keeks_elote.backtest.Backtest.bet_history" title="Link to this definition">¶</a></dt>
+<dd><p>One dict per wager the run considered – settled or not – carrying
+<code class="docutils literal notranslate"><span class="pre">period</span></code>, <code class="docutils literal notranslate"><span class="pre">label</span></code>/<code class="docutils literal notranslate"><span class="pre">opponent</span></code>, the quoted <code class="docutils literal notranslate"><span class="pre">fraction</span></code>, the <code class="docutils literal notranslate"><span class="pre">stake</span></code>
+actually placed (after exposure scaling and any clamp against bettable
+funds), <code class="docutils literal notranslate"><span class="pre">payoff</span></code> (decimal odds minus one), <code class="docutils literal notranslate"><span class="pre">won</span></code>, <code class="docutils literal notranslate"><span class="pre">profit</span></code>,
+<code class="docutils literal notranslate"><span class="pre">bankroll_after</span></code>, and the <code class="docutils literal notranslate"><span class="pre">skipped_zero_stake</span></code> / <code class="docutils literal notranslate"><span class="pre">error</span></code> flags for
+candidates that moved no money. Cleared at the start of each
+<a class="reference internal" href="#keeks_elote.backtest.Backtest.run_explicit" title="keeks_elote.backtest.Backtest.run_explicit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_explicit()</span></code></a> call, so reusing a <code class="docutils literal notranslate"><span class="pre">Backtest</span></code> never mixes two runs.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="keeks_elote.backtest.Backtest.run_explicit">
+<span class="sig-name descname"><span class="pre">run_explicit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bankroll</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">period_to_start_betting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">price_bets_at_true_odds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.Backtest.run_explicit" title="Link to this definition">¶</a></dt>
+<dd><p>Runs the backtest, period by period.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – Historical game data keyed by period; each game needs
+<code class="docutils literal notranslate"><span class="pre">winner</span></code>/<code class="docutils literal notranslate"><span class="pre">loser</span></code> labels, plus optional
+<code class="docutils literal notranslate"><span class="pre">winner_odds</span></code>/<code class="docutils literal notranslate"><span class="pre">loser_odds</span></code> prices in either American or
+decimal format (detected per price – see <code class="xref py py-func docutils literal notranslate"><span class="pre">to_decimal()</span></code>).
+Games without odds are rated but not bet.</p></li>
+<li><p><strong>strategy</strong> – A keeks binary strategy
+(<code class="docutils literal notranslate"><span class="pre">keeks.binary_strategies.BaseStrategy</span></code>) that quotes the
+fraction of the bankroll to stake.</p></li>
+<li><p><strong>bankroll</strong> – A <code class="docutils literal notranslate"><span class="pre">keeks.bankroll.BankRoll</span></code>, updated in place.</p></li>
+<li><p><strong>period_to_start_betting</strong> – The last period that only builds ratings;
+real bets begin the period after it.</p></li>
+<li><p><strong>price_bets_at_true_odds</strong> – Size each bet using its game-specific
+payoff. If false, the strategy’s configured
+payoff is used for sizing (settlement always
+uses the game’s actual odds).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The updated bankroll.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="keeks_elote.backtest.Backtest.run_summary">
+<span class="sig-name descname"><span class="pre">run_summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.Backtest.run_summary" title="Link to this definition">¶</a></dt>
+<dd><p>Condenses <code class="docutils literal notranslate"><span class="pre">bet_history</span></code> into the run’s headline counts:
+<code class="docutils literal notranslate"><span class="pre">total_candidates</span></code>, <code class="docutils literal notranslate"><span class="pre">placed_bets</span></code>, <code class="docutils literal notranslate"><span class="pre">failed_bets</span></code> (with
+<code class="docutils literal notranslate"><span class="pre">failure_reasons</span></code> counted by error message), <code class="docutils literal notranslate"><span class="pre">skipped_zero_stake</span></code>,
+<code class="docutils literal notranslate"><span class="pre">wins</span></code>, <code class="docutils literal notranslate"><span class="pre">losses</span></code>, and <code class="docutils literal notranslate"><span class="pre">net_profit</span></code>. A systematically broken strategy
+reads as <code class="docutils literal notranslate"><span class="pre">failed_bets:</span> <span class="pre">N</span></code> – never as an empty, plausible-looking run.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="keeks_elote.backtest.Backtest.run_and_project">
+<span class="sig-name descname"><span class="pre">run_and_project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.Backtest.run_and_project" title="Link to this definition">¶</a></dt>
+<dd><p>Rating-only run: walks the schedule, updates the arena, and returns one
+projection record per next-period game – the projected period, the model’s
+favored side, and its win probability (always &gt;= 0.5). No betting.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="odds-and-ledger-helpers">
+<h2>Odds and ledger helpers<a class="headerlink" href="#odds-and-ledger-helpers" title="Link to this heading">¶</a></h2>
+<p>The module’s helpers are also exported from the package root.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="keeks_elote.backtest.to_decimal">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.backtest.</span></span><span class="sig-name descname"><span class="pre">to_decimal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">odds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.to_decimal" title="Link to this definition">¶</a></dt>
+<dd><p>Converts a price in either American or decimal format to decimal odds. The
+format is read off the value: negative values and values of 100 or more are
+American, values from 1.0 up to 100 are decimal, and values strictly between
+0 and 1.0 fit neither format and are rejected. Non-real, zero, and non-finite
+values raise <code class="docutils literal notranslate"><span class="pre">TypeError</span></code>/<code class="docutils literal notranslate"><span class="pre">ValueError</span></code> rather than converting.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="keeks_elote.backtest.american_to_decimal">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.backtest.</span></span><span class="sig-name descname"><span class="pre">american_to_decimal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">american_odds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.american_to_decimal" title="Link to this definition">¶</a></dt>
+<dd><p>Converts strictly-American odds to decimal odds – the explicit conversion for
+the one value range where format detection cannot help (American prices
+strictly between 0 and +100 are never quoted by real books).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="keeks_elote.backtest.edge">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.backtest.</span></span><span class="sig-name descname"><span class="pre">edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">probability</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decimal_odds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.edge" title="Link to this definition">¶</a></dt>
+<dd><p>A wager’s expected value per unit staked: <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">*</span> <span class="pre">(d</span> <span class="pre">-</span> <span class="pre">1)</span> <span class="pre">-</span> <span class="pre">(1</span> <span class="pre">-</span> <span class="pre">p)</span></code>. Positive
+exactly when the model’s probability implies the price understates the true
+chance; <code class="docutils literal notranslate"><span class="pre">edge(0.5,</span> <span class="pre">2.1)</span></code> is <code class="docutils literal notranslate"><span class="pre">0.05</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="keeks_elote.backtest.pnl">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.backtest.</span></span><span class="sig-name descname"><span class="pre">pnl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bet_history</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.pnl" title="Link to this definition">¶</a></dt>
+<dd><p>Nets a <code class="docutils literal notranslate"><span class="pre">bet_history</span></code> ledger into its total profit. Failed evaluations and
+zero-stake candidates carry <code class="docutils literal notranslate"><span class="pre">0.0</span></code>, so the whole book nets without
+special-casing.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="keeks_elote.backtest.roi">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.backtest.</span></span><span class="sig-name descname"><span class="pre">roi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bet_history</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.roi" title="Link to this definition">¶</a></dt>
+<dd><p>The ledger’s profit per unit staked (the <code class="docutils literal notranslate"><span class="pre">pnl</span></code> numerator over the sum of
+<code class="docutils literal notranslate"><span class="pre">stake</span></code>); <code class="docutils literal notranslate"><span class="pre">0.0</span></code> when no money was staked.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="keeks_elote.backtest.summarize_bet_history">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.backtest.</span></span><span class="sig-name descname"><span class="pre">summarize_bet_history</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bet_history</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.backtest.summarize_bet_history" title="Link to this definition">¶</a></dt>
+<dd><p>The ledger aggregation behind <a class="reference internal" href="#keeks_elote.backtest.Backtest.run_summary" title="keeks_elote.backtest.Backtest.run_summary"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Backtest.run_summary()</span></code></a> – a pure function
+over the record schema, so caller-side aggregations agree with the run
+summary’s definitions.</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+
+
+<h3 class="sr-only">Table of Contents</h3>
+
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cfb.html">College football, one bet at a time</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl.html">A real Premier League season, priced against closing lines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl_1x2.html">The full 1X2 book: home, draw, away</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cfb_weekly_portfolio.html">One week, one portfolio decision</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multi_outcome_backtest.html">Multi-outcome backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arena_factory.html">Arena factory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="portfolio_backtest.html">Weekly-portfolio backtest</a></li>
+</ul>
+
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+<footer class="footer">
+  <div class="footer__inner">
+    
+    
+    <div class="footer__links">
+      
+        <a href="https://github.com/wdm0006" class="footer__link" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      
+        <a href="https://www.linkedin.com/in/wmcginnis/" class="footer__link" target="_blank" rel="noopener noreferrer">
+          LinkedIn
+        </a>
+      
+        <a href="https://x.com/willmcginniser" class="footer__link" target="_blank" rel="noopener noreferrer">
+          Twitter
+        </a>
+      
+    </div>
+    
+
+    
+    <p class="footer__copy">
+      
+        &copy; 2026, Will McGinnis
+      
+    </p>
+  </div>
+</footer>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.querySelector('.nav-toggle');
+    const nav = document.querySelector('.nav');
+    if (toggle && nav) {
+      toggle.addEventListener('click', function() {
+        nav.classList.toggle('is-open');
+        const isOpen = nav.classList.contains('is-open');
+        toggle.setAttribute('aria-expanded', isOpen);
+      });
+    }
+  });
+</script>
+
+  </body>
+</html>

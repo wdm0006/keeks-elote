@@ -1,0 +1,383 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Weekly-portfolio backtest &#8212; Keeks-Elote</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=30d13653" />
+    <link rel="stylesheet" type="text/css" href="_static/css/wabi.css?v=9adde7c3" />
+    <script src="_static/documentation_options.js?v=6c02275b"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Arena factory" href="arena_factory.html" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+
+
+
+<meta name="description" content="Weekly-portfolio backtest - keeks-elote documentation">
+
+
+
+
+
+
+
+
+
+<meta property="og:title" content="Weekly-portfolio backtest">
+<meta property="og:description" content="Weekly-portfolio backtest - keeks-elote documentation">
+<meta property="og:type" content="website">
+
+<meta property="og:url" content="https://mcginniscommawill.com/portfolio_backtest.html">
+
+
+<meta property="og:site_name" content="keeks-elote">
+
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Weekly-portfolio backtest">
+<meta name="twitter:description" content="Weekly-portfolio backtest - keeks-elote documentation">
+
+<meta name="twitter:site" content="@willmcginniser">
+
+
+
+
+
+<link rel="canonical" href="https://mcginniscommawill.com/portfolio_backtest.html">
+
+
+ 
+
+  </head><body>
+<header class="header">
+  <div class="header__inner">
+    
+    <a href="https://mcginniscommawill.com" class="header__logo">
+      McGinnis, Will
+    </a>
+
+    
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </svg>
+    </button>
+
+    
+    <nav class="nav" role="navigation">
+      
+      
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/guides/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Guides
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/topics/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Topics
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/posts/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Blog
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/about/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            About
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/coffee/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Free Coffee
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/oss/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            OSS
+          </a>
+        
+      
+
+      
+      
+      <a href="index.html" class="nav__link nav__link--active">
+        Docs
+      </a>
+      
+    </nav>
+  </div>
+</header>
+
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <div class="breadcrumbs__inner">
+    
+    <a href="https://mcginniscommawill.com">Home</a>
+    <span class="breadcrumbs__separator">/</span>
+    
+    <a href="index.html">Docs</a>
+    
+    
+    <span class="breadcrumbs__separator">/</span>
+    <span>Weekly-portfolio backtest</span>
+    
+  </div>
+</nav>
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="weekly-portfolio-backtest">
+<h1>Weekly-portfolio backtest<a class="headerlink" href="#weekly-portfolio-backtest" title="Link to this heading">¶</a></h1>
+<p>The portfolio engine: <code class="docutils literal notranslate"><span class="pre">keeks_elote.portfolio_backtest</span></code> sizes each period’s
+slate of games as one joint decision, where
+<a class="reference internal" href="backtest.html#keeks_elote.backtest.Backtest" title="keeks_elote.backtest.Backtest"><code class="xref py py-class docutils literal notranslate"><span class="pre">Backtest</span></code></a> sizes its bets one at a time. It is the
+shape a football week actually presents – N simultaneous games, one bankroll
+decision, one settlement batch – and it consumes keeks 0.9’s allocation layer:
+the week’s arena probabilities and posted American moneylines become a
+<code class="docutils literal notranslate"><span class="pre">keeks.allocation.BinaryBetsModel</span></code>, an allocator
+(<code class="docutils literal notranslate"><span class="pre">keeks.allocation.BaseAllocationStrategy</span></code>) weights the whole slate at once,
+and a one-trial <code class="docutils literal notranslate"><span class="pre">keeks.allocation.AllocationSimulator</span></code> settles the week
+batch-net through the shared bankroll.</p>
+<p>The two engines are deliberately siblings over identical inputs – same schedule,
+same ratings, same bankroll conventions – so a per-bet run and a
+weekly-portfolio run over one fixture can be compared side by side;
+<code class="docutils literal notranslate"><span class="pre">examples/cfb_weekly_portfolio.py</span></code> is that comparison
+(<a class="reference internal" href="cfb_weekly_portfolio.html"><span class="doc">One week, one portfolio decision</span></a>).</p>
+<section id="conventions">
+<h2>Conventions<a class="headerlink" href="#conventions" title="Link to this heading">¶</a></h2>
+<p><strong>One bet per game, winner side.</strong> Each game contributes a single option: the
+recorded winner’s side at its posted moneyline, sized by the arena’s win
+probability for that team. Backing the loser side too would put two perfectly
+anti-correlated options in a model whose correlation-aware allocators assume
+independence, so the slate stays one bet per game.</p>
+<p><strong>An allocator per week.</strong> The caller supplies a factory – a callable from the
+week’s <code class="docutils literal notranslate"><span class="pre">BinaryBetsModel</span></code> to the allocator that sizes it (see
+<code class="xref py py-data docutils literal notranslate"><span class="pre">AllocatorFactory</span></code>) – because the slate’s width changes from week to week
+as games gain, lose, or carry no usable moneyline, and every shipped allocator
+fixes its weight-vector width at construction from that week’s moments or
+scenarios. Stateful (online) allocators keep their state across weeks through
+the forwarded <code class="docutils literal notranslate"><span class="pre">update_bankroll</span></code> hook only when the factory returns the same
+instance each week; moment-based factories construct a fresh allocator per week,
+which is the common case.</p>
+<p><strong>One trial per week.</strong> The simulator runs <code class="docutils literal notranslate"><span class="pre">trials=1</span></code> per week, so the
+bankroll’s batch-net settlement convention evaluates exactly once per week: the
+week’s stakes are <code class="docutils literal notranslate"><span class="pre">bettable_funds</span> <span class="pre">*</span> <span class="pre">weight</span></code> per bet, and the whole batch nets
+to a single bankroll transaction.</p>
+<p><strong>Seeding.</strong> With <code class="docutils literal notranslate"><span class="pre">seed</span></code> set, week <em>t</em> of the schedule (in sorted period order,
+warm-up weeks included) settles from a simulator seeded <code class="docutils literal notranslate"><span class="pre">seed</span> <span class="pre">+</span> <span class="pre">t</span></code> – the
+per-stream pattern <code class="xref py py-mod docutils literal notranslate"><span class="pre">multi_outcome_backtest</span></code> uses per game – so
+a seeded run replays bit-exactly, and changing <code class="docutils literal notranslate"><span class="pre">period_to_start_betting</span></code> does
+not shift any week’s stream. With <code class="docutils literal notranslate"><span class="pre">seed=None</span></code> no replay is promised.</p>
+<p><strong>Time-stamped rating.</strong> When every game in the schedule carries a parseable
+<code class="docutils literal notranslate"><span class="pre">date</span></code>, rating is time-stamped from those dates: a week is rated in kickoff
+order, and Glicko’s rating-deviation decay follows the fixture’s calendar instead
+of the wall clock. Any undated game switches the whole run to elote’s default
+wall-clock rating.</p>
+</section>
+<section id="the-weeklyportfoliobacktest-class">
+<h2>The WeeklyPortfolioBacktest class<a class="headerlink" href="#the-weeklyportfoliobacktest-class" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">keeks_elote.portfolio_backtest.</span></span><span class="sig-name descname"><span class="pre">WeeklyPortfolioBacktest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arena</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest" title="Link to this definition">¶</a></dt>
+<dd><p>Backtests rating-driven betting with each period’s slate sized jointly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>arena</strong> – An initialized arena satisfying the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">RatingArena</span></code> protocol;
+<a class="reference internal" href="arena_factory.html#keeks_elote.arena_factory.create_arena" title="keeks_elote.arena_factory.create_arena"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_arena()</span></code></a> builds one.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest.bet_history">
+<span class="sig-name descname"><span class="pre">bet_history</span></span><a class="headerlink" href="#keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest.bet_history" title="Link to this definition">¶</a></dt>
+<dd><p>The last run’s weekly ledger (cleared at the start of each
+<a class="reference internal" href="#keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest.run_explicit" title="keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest.run_explicit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_explicit()</span></code></a> call) – one dict per settled week, the same records
+the method returns. See <a class="reference internal" href="#keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest.run_explicit" title="keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest.run_explicit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_explicit()</span></code></a> for the schema.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest.run_explicit">
+<span class="sig-name descname"><span class="pre">run_explicit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allocator_factory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bankroll</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transaction_cost_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">period_to_start_betting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest.run_explicit" title="Link to this definition">¶</a></dt>
+<dd><p>Runs the weekly-portfolio backtest, period by period. Per period, in
+order: price the period’s bettable games against the ratings as they stand
+(the period’s own results are not yet rated, so nothing leaks), settle the
+week’s slate as one portfolio decision through the shared bankroll, then
+rate the period’s recorded results. Periods up to and including
+<code class="docutils literal notranslate"><span class="pre">period_to_start_betting</span></code> are rating-only warm-up.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – Historical game data keyed by period; each game needs
+<code class="docutils literal notranslate"><span class="pre">winner</span></code>/<code class="docutils literal notranslate"><span class="pre">loser</span></code> labels, and <code class="docutils literal notranslate"><span class="pre">winner_ml</span></code> (an American
+price, string or numeric) makes the game bettable when it
+converts to a usable decimal price. Games without a usable
+price are rated but not bet.</p></li>
+<li><p><strong>allocator_factory</strong> – Maps the week’s
+<code class="docutils literal notranslate"><span class="pre">keeks.allocation.BinaryBetsModel</span></code> to the
+allocator that sizes it – see
+<code class="xref py py-data docutils literal notranslate"><span class="pre">AllocatorFactory</span></code>.</p></li>
+<li><p><strong>bankroll</strong> – A <code class="docutils literal notranslate"><span class="pre">keeks.bankroll.BankRoll</span></code>, updated in place.</p></li>
+<li><p><strong>transaction_cost_rate</strong> – The per-unit-staked fee folded into every
+bet’s win and loss returns in the week’s
+model. Defaults to 0.0 (fee-free).</p></li>
+<li><p><strong>period_to_start_betting</strong> – The last period that only builds ratings.
+Defaults to 0.</p></li>
+<li><p><strong>seed</strong> – Base seed for the per-week settlement streams. <code class="docutils literal notranslate"><span class="pre">None</span></code>
+promises no replay.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The run’s weekly ledger – one dict per settled week with the
+slate <code class="docutils literal notranslate"><span class="pre">bets</span></code> (the backed label and opponent, the arena’s win
+probability, the decimal-odds price), the allocator’s
+<code class="docutils literal notranslate"><span class="pre">weights</span></code>, the per-bet <code class="docutils literal notranslate"><span class="pre">stakes</span></code> and their total <code class="docutils literal notranslate"><span class="pre">stake</span></code>
+(the denominator <a class="reference internal" href="backtest.html#keeks_elote.backtest.roi" title="keeks_elote.backtest.roi"><code class="xref py py-func docutils literal notranslate"><span class="pre">roi()</span></code></a> uses), the
+settled <code class="docutils literal notranslate"><span class="pre">returns</span></code>/<code class="docutils literal notranslate"><span class="pre">won</span></code> flags, the week’s <code class="docutils literal notranslate"><span class="pre">profit</span></code> and the
+<code class="docutils literal notranslate"><span class="pre">bankroll_before</span></code>/<code class="docutils literal notranslate"><span class="pre">bankroll_after</span></code> reads, and the
+<code class="docutils literal notranslate"><span class="pre">skipped_zero_stake</span></code>/<code class="docutils literal notranslate"><span class="pre">error</span></code> flags for weeks that moved no
+money.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="the-allocator-factory-contract">
+<h2>The allocator-factory contract<a class="headerlink" href="#the-allocator-factory-contract" title="Link to this heading">¶</a></h2>
+<dl class="py data">
+<dt class="sig sig-object py" id="keeks_elote.portfolio_backtest.AllocatorFactory">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.portfolio_backtest.</span></span><span class="sig-name descname"><span class="pre">AllocatorFactory</span></span><a class="headerlink" href="#keeks_elote.portfolio_backtest.AllocatorFactory" title="Link to this definition">¶</a></dt>
+<dd><p>Maps the week’s joint-return model to the allocator that sizes it:
+<code class="docutils literal notranslate"><span class="pre">Callable[[BinaryBetsModel],</span> <span class="pre">BaseAllocationStrategy]</span></code>. A callable, because
+the slate’s width changes from week to week – every shipped allocator fixes
+its weight-vector width at construction from that week’s moments or
+scenarios. <code class="docutils literal notranslate"><span class="pre">examples/cfb_weekly_portfolio.py</span></code> ships two: a mean-variance
+factory over the model’s exact moments, and a mean-CVaR factory over seeded
+scenario draws.</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+
+
+<h3 class="sr-only">Table of Contents</h3>
+
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cfb.html">College football, one bet at a time</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl.html">A real Premier League season, priced against closing lines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl_1x2.html">The full 1X2 book: home, draw, away</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cfb_weekly_portfolio.html">One week, one portfolio decision</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="backtest.html">Backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multi_outcome_backtest.html">Multi-outcome backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arena_factory.html">Arena factory</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Weekly-portfolio backtest</a></li>
+</ul>
+
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+<footer class="footer">
+  <div class="footer__inner">
+    
+    
+    <div class="footer__links">
+      
+        <a href="https://github.com/wdm0006" class="footer__link" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      
+        <a href="https://www.linkedin.com/in/wmcginnis/" class="footer__link" target="_blank" rel="noopener noreferrer">
+          LinkedIn
+        </a>
+      
+        <a href="https://x.com/willmcginniser" class="footer__link" target="_blank" rel="noopener noreferrer">
+          Twitter
+        </a>
+      
+    </div>
+    
+
+    
+    <p class="footer__copy">
+      
+        &copy; 2026, Will McGinnis
+      
+    </p>
+  </div>
+</footer>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.querySelector('.nav-toggle');
+    const nav = document.querySelector('.nav');
+    if (toggle && nav) {
+      toggle.addEventListener('click', function() {
+        nav.classList.toggle('is-open');
+        const isOpen = nav.classList.contains('is-open');
+        toggle.setAttribute('aria-expanded', isOpen);
+      });
+    }
+  });
+</script>
+
+  </body>
+</html>

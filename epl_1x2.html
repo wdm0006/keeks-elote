@@ -1,0 +1,302 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>The full 1X2 book: home, draw, away &#8212; Keeks-Elote</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=30d13653" />
+    <link rel="stylesheet" type="text/css" href="_static/css/wabi.css?v=9adde7c3" />
+    <script src="_static/documentation_options.js?v=6c02275b"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="One week, one portfolio decision" href="cfb_weekly_portfolio.html" />
+    <link rel="prev" title="A real Premier League season, priced against closing lines" href="epl.html" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+
+
+
+<meta name="description" content="The full 1X2 book: home, draw, away - keeks-elote documentation">
+
+
+
+
+
+
+
+
+
+<meta property="og:title" content="The full 1X2 book: home, draw, away">
+<meta property="og:description" content="The full 1X2 book: home, draw, away - keeks-elote documentation">
+<meta property="og:type" content="website">
+
+<meta property="og:url" content="https://mcginniscommawill.com/epl_1x2.html">
+
+
+<meta property="og:site_name" content="keeks-elote">
+
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The full 1X2 book: home, draw, away">
+<meta name="twitter:description" content="The full 1X2 book: home, draw, away - keeks-elote documentation">
+
+<meta name="twitter:site" content="@willmcginniser">
+
+
+
+
+
+<link rel="canonical" href="https://mcginniscommawill.com/epl_1x2.html">
+
+
+ 
+
+  </head><body>
+<header class="header">
+  <div class="header__inner">
+    
+    <a href="https://mcginniscommawill.com" class="header__logo">
+      McGinnis, Will
+    </a>
+
+    
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </svg>
+    </button>
+
+    
+    <nav class="nav" role="navigation">
+      
+      
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/guides/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Guides
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/topics/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Topics
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/posts/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Blog
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/about/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            About
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/coffee/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Free Coffee
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/oss/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            OSS
+          </a>
+        
+      
+
+      
+      
+      <a href="index.html" class="nav__link nav__link--active">
+        Docs
+      </a>
+      
+    </nav>
+  </div>
+</header>
+
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <div class="breadcrumbs__inner">
+    
+    <a href="https://mcginniscommawill.com">Home</a>
+    <span class="breadcrumbs__separator">/</span>
+    
+    <a href="index.html">Docs</a>
+    
+    
+    <span class="breadcrumbs__separator">/</span>
+    <span>The full 1X2 book: home, draw, away</span>
+    
+  </div>
+</nav>
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="the-full-1x2-book-home-draw-away">
+<h1>The full 1X2 book: home, draw, away<a class="headerlink" href="#the-full-1x2-book-home-draw-away" title="Link to this heading">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">examples/epl_1x2.py</span></code> runs the multi-outcome flow
+(<a class="reference internal" href="multi_outcome_backtest.html#keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest" title="keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest"><code class="xref py py-class docutils literal notranslate"><span class="pre">keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest</span></code></a>) over a
+draw-inclusive season, backtesting the whole three-leg book instead of the binary
+backtest’s one wager per game:</p>
+<ol class="arabic simple">
+<li><p><strong>Rating-driven probabilities.</strong> The arena’s expected score for each game is
+expanded into a full (home, draw, away) book by
+<a class="reference internal" href="multi_outcome_backtest.html#keeks_elote.multi_outcome_backtest.one_x_two_probabilities" title="keeks_elote.multi_outcome_backtest.one_x_two_probabilities"><code class="xref py py-func docutils literal notranslate"><span class="pre">keeks_elote.multi_outcome_backtest.one_x_two_probabilities()</span></code></a>, reserving a
+draw probability that peaks at rating parity (the Davidson tie term).</p></li>
+<li><p><strong>Kelly sizing across the legs.</strong> keeks’
+<code class="docutils literal notranslate"><span class="pre">MultiOutcomeKellyCriterion</span></code> splits the stake across the three legs, repriced
+per game with that game’s own decimal odds.</p></li>
+<li><p><strong>Recorded settlement.</strong> Each game settles on the leg its recorded scores
+imply (home win, draw, away win) – the same convention as the binary
+backtest – debiting the stakes and crediting the winning leg
+<code class="docutils literal notranslate"><span class="pre">payoff</span> <span class="pre">*</span> <span class="pre">stake</span></code> on the bankroll. <code class="docutils literal notranslate"><span class="pre">settlement=&quot;simulated&quot;</span></code> is the
+opt-in alternative: keeks’ one-trial simulator draws the leg from the
+model’s own book instead.</p></li>
+<li><p><strong>The ledger.</strong> Every game lands in <code class="docutils literal notranslate"><span class="pre">bet_history</span></code> with the book, the stake
+fractions, the absolute stakes, the realized leg, and the bankroll around it,
+so <a class="reference internal" href="backtest.html#keeks_elote.backtest.pnl" title="keeks_elote.backtest.pnl"><code class="xref py py-func docutils literal notranslate"><span class="pre">pnl()</span></code></a> and <a class="reference internal" href="backtest.html#keeks_elote.backtest.roi" title="keeks_elote.backtest.roi"><code class="xref py py-func docutils literal notranslate"><span class="pre">roi()</span></code></a>
+reconcile against the closing balance.</p></li>
+</ol>
+<p><strong>The data is synthetic.</strong> <code class="docutils literal notranslate"><span class="pre">examples/data/epl_1x2_season.csv</span></code> is a generated,
+illustrative ten-week double round-robin (six teams, seeded Poisson scores,
+bookmaker-style odds with a 4.5% margin) – not a record of real results. The
+committed binary EPL fixture excludes draws, which is exactly the outcome a 1X2
+example needs, so none is fabricated under a real-world label. The run prices 17
+of the 21 games (four have no complete set of prices and are rated but not bet),
+realizes 9 home wins, 4 draws, and 4 away wins, and finishes at 664.35 from a
+1,000 bankroll (PnL −335.65, ROI −14.3%): an Elo-derived, draw-blind book
+staked by Kelly against a 4.5%-margin market loses across the season, which is
+the honest outcome for a model that prices neither draws nor margin the way a
+bookmaker does. Treat it as a flow demonstration, not a result.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Simulated results from a model, not a forecast and not investment advice.</p>
+</div>
+<section id="reproducing-it">
+<h2>Reproducing it<a class="headerlink" href="#reproducing-it" title="Link to this heading">¶</a></h2>
+<p>From a checkout of the repository, with the development environment installed
+(<code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">&quot;.[dev]&quot;</span></code>):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>examples<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>../.venv/bin/python<span class="w"> </span>epl_1x2.py
+</pre></div>
+</div>
+<p>The run is fully deterministic: settlement is recorded by default, so a rerun
+replays the same season with no seed at all.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+
+
+<h3 class="sr-only">Table of Contents</h3>
+
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="cfb.html">College football, one bet at a time</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl.html">A real Premier League season, priced against closing lines</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The full 1X2 book: home, draw, away</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cfb_weekly_portfolio.html">One week, one portfolio decision</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="backtest.html">Backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multi_outcome_backtest.html">Multi-outcome backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arena_factory.html">Arena factory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="portfolio_backtest.html">Weekly-portfolio backtest</a></li>
+</ul>
+
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+<footer class="footer">
+  <div class="footer__inner">
+    
+    
+    <div class="footer__links">
+      
+        <a href="https://github.com/wdm0006" class="footer__link" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      
+        <a href="https://www.linkedin.com/in/wmcginnis/" class="footer__link" target="_blank" rel="noopener noreferrer">
+          LinkedIn
+        </a>
+      
+        <a href="https://x.com/willmcginniser" class="footer__link" target="_blank" rel="noopener noreferrer">
+          Twitter
+        </a>
+      
+    </div>
+    
+
+    
+    <p class="footer__copy">
+      
+        &copy; 2026, Will McGinnis
+      
+    </p>
+  </div>
+</footer>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.querySelector('.nav-toggle');
+    const nav = document.querySelector('.nav');
+    if (toggle && nav) {
+      toggle.addEventListener('click', function() {
+        nav.classList.toggle('is-open');
+        const isOpen = nav.classList.contains('is-open');
+        toggle.setAttribute('aria-expanded', isOpen);
+      });
+    }
+  });
+</script>
+
+  </body>
+</html>

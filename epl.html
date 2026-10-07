@@ -1,0 +1,294 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>A real Premier League season, priced against closing lines &#8212; Keeks-Elote</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=30d13653" />
+    <link rel="stylesheet" type="text/css" href="_static/css/wabi.css?v=9adde7c3" />
+    <script src="_static/documentation_options.js?v=6c02275b"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The full 1X2 book: home, draw, away" href="epl_1x2.html" />
+    <link rel="prev" title="College football, one bet at a time" href="cfb.html" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+
+
+
+<meta name="description" content="A real Premier League season, priced against closing lines - keeks-elote documentation">
+
+
+
+
+
+
+
+
+
+<meta property="og:title" content="A real Premier League season, priced against closing lines">
+<meta property="og:description" content="A real Premier League season, priced against closing lines - keeks-elote documentation">
+<meta property="og:type" content="website">
+
+<meta property="og:url" content="https://mcginniscommawill.com/epl.html">
+
+
+<meta property="og:site_name" content="keeks-elote">
+
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="A real Premier League season, priced against closing lines">
+<meta name="twitter:description" content="A real Premier League season, priced against closing lines - keeks-elote documentation">
+
+<meta name="twitter:site" content="@willmcginniser">
+
+
+
+
+
+<link rel="canonical" href="https://mcginniscommawill.com/epl.html">
+
+
+ 
+
+  </head><body>
+<header class="header">
+  <div class="header__inner">
+    
+    <a href="https://mcginniscommawill.com" class="header__logo">
+      McGinnis, Will
+    </a>
+
+    
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </svg>
+    </button>
+
+    
+    <nav class="nav" role="navigation">
+      
+      
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/guides/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Guides
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/topics/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Topics
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/posts/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Blog
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/about/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            About
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/coffee/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Free Coffee
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/oss/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            OSS
+          </a>
+        
+      
+
+      
+      
+      <a href="index.html" class="nav__link nav__link--active">
+        Docs
+      </a>
+      
+    </nav>
+  </div>
+</header>
+
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <div class="breadcrumbs__inner">
+    
+    <a href="https://mcginniscommawill.com">Home</a>
+    <span class="breadcrumbs__separator">/</span>
+    
+    <a href="index.html">Docs</a>
+    
+    
+    <span class="breadcrumbs__separator">/</span>
+    <span>A real Premier League season, priced...</span>
+    
+  </div>
+</nav>
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="a-real-premier-league-season-priced-against-closing-lines">
+<h1>A real Premier League season, priced against closing lines<a class="headerlink" href="#a-real-premier-league-season-priced-against-closing-lines" title="Link to this heading">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">examples/epl.py</span></code> is the loaders-and-metrics tour over a real dataset: the 2023-24
+English Premier League season with Bet365 closing prices (the committed
+<code class="docutils literal notranslate"><span class="pre">examples/data/epl_2023_24.csv</span></code> is from football-data.co.uk). It uses only what
+the package root exports:</p>
+<ul class="simple">
+<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">load_csv()</span></code> turns the flat match rows into the
+period-keyed dict the backtest consumes – one calendar matchweek per period,
+298 decisive matches (the season’s 82 draws are excluded: the binary game
+schema has no third outcome).</p></li>
+<li><p><a class="reference internal" href="arena_factory.html#keeks_elote.arena_factory.create_arena" title="keeks_elote.arena_factory.create_arena"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_arena(&quot;elo&quot;)</span></code></a>
+builds the rating arena in one line, and Elo ratings update from every recorded
+result as the season progresses.</p></li>
+<li><p>Every game carries decimal prices, so the per-bet engine
+(<a class="reference internal" href="backtest.html#keeks_elote.backtest.Backtest" title="keeks_elote.backtest.Backtest"><code class="xref py py-class docutils literal notranslate"><span class="pre">keeks_elote.backtest.Backtest</span></code></a>) prices each candidate through the
+decimal-odds path and the Kelly criterion sizes it; betting starts after
+matchweek 6.</p></li>
+<li><p>After the run, <a class="reference internal" href="backtest.html#keeks_elote.backtest.edge" title="keeks_elote.backtest.edge"><code class="xref py py-func docutils literal notranslate"><span class="pre">edge()</span></code></a> re-prices the model’s
+probabilities against the closing lines of the final matchweek (in-sample –
+the ratings have already seen those results), and
+<a class="reference internal" href="backtest.html#keeks_elote.backtest.pnl" title="keeks_elote.backtest.pnl"><code class="xref py py-func docutils literal notranslate"><span class="pre">pnl()</span></code></a> / <a class="reference internal" href="backtest.html#keeks_elote.backtest.roi" title="keeks_elote.backtest.roi"><code class="xref py py-func docutils literal notranslate"><span class="pre">roi()</span></code></a> net the
+settled ledger.</p></li>
+</ul>
+<p>The honest headline of this example is that the model <em>loses</em>: against real
+closing lines, a rating system’s opinions are rarely the market’s equal, and the
+run’s own summary says so – 387 bets placed (155 won, 232 lost), a net profit of
+about -600 from a 1,000 bankroll, and a return of roughly -0.05 per unit staked.
+A backtest that only ever printed winning seasons would be hiding exactly this.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Simulated results from a model, not a forecast and not investment advice.</p>
+</div>
+<section id="reproducing-it">
+<h2>Reproducing it<a class="headerlink" href="#reproducing-it" title="Link to this heading">¶</a></h2>
+<p>From a checkout of the repository, with the development environment installed
+(<code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">&quot;.[dev]&quot;</span></code>):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>examples<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>../.venv/bin/python<span class="w"> </span>epl.py
+</pre></div>
+</div>
+<p>The CSV is committed next to the script, so nothing is fetched at run time.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+
+
+<h3 class="sr-only">Table of Contents</h3>
+
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="cfb.html">College football, one bet at a time</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">A real Premier League season, priced against closing lines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl_1x2.html">The full 1X2 book: home, draw, away</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cfb_weekly_portfolio.html">One week, one portfolio decision</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="backtest.html">Backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multi_outcome_backtest.html">Multi-outcome backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arena_factory.html">Arena factory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="portfolio_backtest.html">Weekly-portfolio backtest</a></li>
+</ul>
+
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+<footer class="footer">
+  <div class="footer__inner">
+    
+    
+    <div class="footer__links">
+      
+        <a href="https://github.com/wdm0006" class="footer__link" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      
+        <a href="https://www.linkedin.com/in/wmcginnis/" class="footer__link" target="_blank" rel="noopener noreferrer">
+          LinkedIn
+        </a>
+      
+        <a href="https://x.com/willmcginniser" class="footer__link" target="_blank" rel="noopener noreferrer">
+          Twitter
+        </a>
+      
+    </div>
+    
+
+    
+    <p class="footer__copy">
+      
+        &copy; 2026, Will McGinnis
+      
+    </p>
+  </div>
+</footer>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.querySelector('.nav-toggle');
+    const nav = document.querySelector('.nav');
+    if (toggle && nav) {
+      toggle.addEventListener('click', function() {
+        nav.classList.toggle('is-open');
+        const isOpen = nav.classList.contains('is-open');
+        toggle.setAttribute('aria-expanded', isOpen);
+      });
+    }
+  });
+</script>
+
+  </body>
+</html>

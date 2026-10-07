@@ -1,0 +1,341 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Welcome to Keeks-Elote &#8212; Keeks-Elote</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=30d13653" />
+    <link rel="stylesheet" type="text/css" href="_static/css/wabi.css?v=9adde7c3" />
+    <script src="_static/documentation_options.js?v=6c02275b"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="College football, one bet at a time" href="cfb.html" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+
+
+
+<meta name="description" content="Welcome to Keeks-Elote - keeks-elote documentation">
+
+
+
+
+
+
+
+
+
+<meta property="og:title" content="Welcome to Keeks-Elote">
+<meta property="og:description" content="Welcome to Keeks-Elote - keeks-elote documentation">
+<meta property="og:type" content="website">
+
+<meta property="og:url" content="https://mcginniscommawill.com/index.html">
+
+
+<meta property="og:site_name" content="keeks-elote">
+
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Welcome to Keeks-Elote">
+<meta name="twitter:description" content="Welcome to Keeks-Elote - keeks-elote documentation">
+
+<meta name="twitter:site" content="@willmcginniser">
+
+
+
+
+
+<link rel="canonical" href="https://mcginniscommawill.com/index.html">
+
+
+ 
+
+  </head><body>
+<header class="header">
+  <div class="header__inner">
+    
+    <a href="https://mcginniscommawill.com" class="header__logo">
+      McGinnis, Will
+    </a>
+
+    
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </svg>
+    </button>
+
+    
+    <nav class="nav" role="navigation">
+      
+      
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/guides/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Guides
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/topics/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Topics
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/posts/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Blog
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/about/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            About
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/coffee/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Free Coffee
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/oss/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            OSS
+          </a>
+        
+      
+
+      
+      
+      <a href="#" class="nav__link nav__link--active">
+        Docs
+      </a>
+      
+    </nav>
+  </div>
+</header>
+
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <div class="breadcrumbs__inner">
+    
+    <a href="https://mcginniscommawill.com">Home</a>
+    <span class="breadcrumbs__separator">/</span>
+    
+    <a href="#">Docs</a>
+    
+    
+    <span class="breadcrumbs__separator">/</span>
+    <span>Welcome to Keeks-Elote</span>
+    
+  </div>
+</nav>
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="welcome-to-keeks-elote">
+<h1>Welcome to Keeks-Elote<a class="headerlink" href="#welcome-to-keeks-elote" title="Link to this heading">¶</a></h1>
+<p>Keeks-Elote couples the <a class="reference external" href="https://elote.mcginniscommawill.com">elote</a> rating-system
+library with the <a class="reference external" href="https://keeks.mcginniscommawill.com">keeks</a> bankroll-management
+library, so rating-driven predictions can be backtested against real betting
+strategies. The ratings produce win probabilities from the results as they stand,
+the posted prices set what a win pays, and the gap between the model and the market
+– the edge – is turned into a stake by a keeks strategy.</p>
+<p>The package covers both betting shapes. The per-bet engine
+(<a class="reference internal" href="backtest.html#keeks_elote.backtest.Backtest" title="keeks_elote.backtest.Backtest"><code class="xref py py-class docutils literal notranslate"><span class="pre">keeks_elote.backtest.Backtest</span></code></a>) sizes each game individually: a strategy
+quotes the fraction of the bankroll to stake on one game at a time, and every game
+settles on its own recorded result. The portfolio engine
+(<a class="reference internal" href="portfolio_backtest.html#keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest" title="keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest"><code class="xref py py-class docutils literal notranslate"><span class="pre">keeks_elote.portfolio_backtest.WeeklyPortfolioBacktest</span></code></a>) sizes a whole
+period’s slate of games as one joint decision through keeks’ allocation layer, and
+<a class="reference internal" href="multi_outcome_backtest.html#keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest" title="keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest"><code class="xref py py-class docutils literal notranslate"><span class="pre">keeks_elote.multi_outcome_backtest.MultiOutcomeBacktest</span></code></a> prices the full
+home / draw / away book of three-way markets through keeks’ multi-outcome API.
+Arenas for the twelve supported rating systems are built in one line by
+<a class="reference internal" href="arena_factory.html#keeks_elote.arena_factory.create_arena" title="keeks_elote.arena_factory.create_arena"><code class="xref py py-func docutils literal notranslate"><span class="pre">keeks_elote.arena_factory.create_arena()</span></code></a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This library is for educational purposes only. It is not intended to provide
+investment, legal, or tax advice. Every worked example here replays a
+simulation, and its bankrolls, edges, and returns are properties of the model –
+never predictions about real money. Always be responsible and consult with a
+professional before applying these strategies to real-world betting scenarios.</p>
+</div>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>keeks-elote
+</pre></div>
+</div>
+<p>or, with uv:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>keeks-elote
+</pre></div>
+</div>
+</section>
+<section id="quickstart">
+<h2>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading">¶</a></h2>
+<p>A period-keyed history, an arena, a bankroll, a strategy – the whole flow in one
+pass. Periods up to <code class="docutils literal notranslate"><span class="pre">period_to_start_betting</span></code> are dry runs that only build
+ratings; real bets begin after that:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">keeks.bankroll</span><span class="w"> </span><span class="kn">import</span> <span class="n">BankRoll</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">keeks.binary_strategies.kelly</span><span class="w"> </span><span class="kn">import</span> <span class="n">KellyCriterion</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">keeks_elote</span><span class="w"> </span><span class="kn">import</span> <span class="n">Backtest</span><span class="p">,</span> <span class="n">create_arena</span>
+
+<span class="c1"># Historical outcomes, keyed by period (e.g. week). Ratings update from the</span>
+<span class="c1"># known winner/loser; odds drive the simulated bets in later periods.</span>
+<span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="p">[{</span><span class="s2">"winner"</span><span class="p">:</span> <span class="s2">"Alabama"</span><span class="p">,</span> <span class="s2">"loser"</span><span class="p">:</span> <span class="s2">"Auburn"</span><span class="p">,</span> <span class="s2">"winner_odds"</span><span class="p">:</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="s2">"loser_odds"</span><span class="p">:</span> <span class="mi">130</span><span class="p">}],</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="p">[{</span><span class="s2">"winner"</span><span class="p">:</span> <span class="s2">"Georgia"</span><span class="p">,</span> <span class="s2">"loser"</span><span class="p">:</span> <span class="s2">"Florida"</span><span class="p">,</span> <span class="s2">"winner_odds"</span><span class="p">:</span> <span class="o">-</span><span class="mi">200</span><span class="p">,</span> <span class="s2">"loser_odds"</span><span class="p">:</span> <span class="mi">175</span><span class="p">}],</span>
+<span class="p">}</span>
+
+<span class="n">arena</span> <span class="o">=</span> <span class="n">create_arena</span><span class="p">(</span><span class="s2">"glicko"</span><span class="p">)</span>
+
+<span class="n">bankroll</span> <span class="o">=</span> <span class="n">BankRoll</span><span class="p">(</span><span class="n">initial_funds</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">percent_bettable</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">max_transaction_loss</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">strategy</span> <span class="o">=</span> <span class="n">KellyCriterion</span><span class="p">(</span><span class="n">payoff</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">transaction_cost_rate</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+
+<span class="n">backtest</span> <span class="o">=</span> <span class="n">Backtest</span><span class="p">(</span><span class="n">arena</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">backtest</span><span class="o">.</span><span class="n">run_explicit</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">strategy</span><span class="p">,</span> <span class="n">bankroll</span><span class="p">,</span> <span class="n">period_to_start_betting</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">total_funds</span><span class="p">)</span>          <span class="c1"># the closing bankroll</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">backtest</span><span class="o">.</span><span class="n">bet_history</span><span class="p">))</span>   <span class="c1"># every wager the run considered</span>
+</pre></div>
+</div>
+<p>The closing <code class="docutils literal notranslate"><span class="pre">total_funds</span></code> conflates hit rate, stake sizing, and how many bets
+were even placed, so <a class="reference internal" href="backtest.html#keeks_elote.backtest.Backtest.run_explicit" title="keeks_elote.backtest.Backtest.run_explicit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_explicit()</span></code></a> also fills
+<code class="docutils literal notranslate"><span class="pre">backtest.bet_history</span></code>: one record per wager the run considered, settled or not,
+carrying the stake, the profit, and the bankroll after settlement. Candidates that
+moved no money are recorded too (<code class="docutils literal notranslate"><span class="pre">skipped_zero_stake</span></code> or <code class="docutils literal notranslate"><span class="pre">error</span></code>), and
+<a class="reference internal" href="backtest.html#keeks_elote.backtest.pnl" title="keeks_elote.backtest.pnl"><code class="xref py py-func docutils literal notranslate"><span class="pre">pnl()</span></code></a> and <a class="reference internal" href="backtest.html#keeks_elote.backtest.roi" title="keeks_elote.backtest.roi"><code class="xref py py-func docutils literal notranslate"><span class="pre">roi()</span></code></a> net that
+ledger into its profit and its per-unit-staked return.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cfb.html">College football, one bet at a time</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl.html">A real Premier League season, priced against closing lines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl_1x2.html">The full 1X2 book: home, draw, away</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cfb_weekly_portfolio.html">One week, one portfolio decision</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="backtest.html">Backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multi_outcome_backtest.html">Multi-outcome backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arena_factory.html">Arena factory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="portfolio_backtest.html">Weekly-portfolio backtest</a></li>
+</ul>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+
+
+<h3 class="sr-only">Table of Contents</h3>
+
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cfb.html">College football, one bet at a time</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl.html">A real Premier League season, priced against closing lines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl_1x2.html">The full 1X2 book: home, draw, away</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cfb_weekly_portfolio.html">One week, one portfolio decision</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="backtest.html">Backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multi_outcome_backtest.html">Multi-outcome backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arena_factory.html">Arena factory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="portfolio_backtest.html">Weekly-portfolio backtest</a></li>
+</ul>
+
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+<footer class="footer">
+  <div class="footer__inner">
+    
+    
+    <div class="footer__links">
+      
+        <a href="https://github.com/wdm0006" class="footer__link" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      
+        <a href="https://www.linkedin.com/in/wmcginnis/" class="footer__link" target="_blank" rel="noopener noreferrer">
+          LinkedIn
+        </a>
+      
+        <a href="https://x.com/willmcginniser" class="footer__link" target="_blank" rel="noopener noreferrer">
+          Twitter
+        </a>
+      
+    </div>
+    
+
+    
+    <p class="footer__copy">
+      
+        &copy; 2026, Will McGinnis
+      
+    </p>
+  </div>
+</footer>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.querySelector('.nav-toggle');
+    const nav = document.querySelector('.nav');
+    if (toggle && nav) {
+      toggle.addEventListener('click', function() {
+        nav.classList.toggle('is-open');
+        const isOpen = nav.classList.contains('is-open');
+        toggle.setAttribute('aria-expanded', isOpen);
+      });
+    }
+  });
+</script>
+
+  </body>
+</html>

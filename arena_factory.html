@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Arena factory &#8212; Keeks-Elote</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=30d13653" />
+    <link rel="stylesheet" type="text/css" href="_static/css/wabi.css?v=9adde7c3" />
+    <script src="_static/documentation_options.js?v=6c02275b"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Weekly-portfolio backtest" href="portfolio_backtest.html" />
+    <link rel="prev" title="Multi-outcome backtest" href="multi_outcome_backtest.html" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+
+
+
+<meta name="description" content="Arena factory - keeks-elote documentation">
+
+
+
+
+
+
+
+
+
+<meta property="og:title" content="Arena factory">
+<meta property="og:description" content="Arena factory - keeks-elote documentation">
+<meta property="og:type" content="website">
+
+<meta property="og:url" content="https://mcginniscommawill.com/arena_factory.html">
+
+
+<meta property="og:site_name" content="keeks-elote">
+
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Arena factory">
+<meta name="twitter:description" content="Arena factory - keeks-elote documentation">
+
+<meta name="twitter:site" content="@willmcginniser">
+
+
+
+
+
+<link rel="canonical" href="https://mcginniscommawill.com/arena_factory.html">
+
+
+ 
+
+  </head><body>
+<header class="header">
+  <div class="header__inner">
+    
+    <a href="https://mcginniscommawill.com" class="header__logo">
+      McGinnis, Will
+    </a>
+
+    
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </svg>
+    </button>
+
+    
+    <nav class="nav" role="navigation">
+      
+      
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/guides/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Guides
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/topics/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Topics
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/posts/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Blog
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/about/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            About
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/coffee/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            Free Coffee
+          </a>
+        
+          
+          
+          
+          <a href="https://mcginniscommawill.com/oss/" class="nav__link"
+             target="_blank" rel="noopener noreferrer">
+            OSS
+          </a>
+        
+      
+
+      
+      
+      <a href="index.html" class="nav__link nav__link--active">
+        Docs
+      </a>
+      
+    </nav>
+  </div>
+</header>
+
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <div class="breadcrumbs__inner">
+    
+    <a href="https://mcginniscommawill.com">Home</a>
+    <span class="breadcrumbs__separator">/</span>
+    
+    <a href="index.html">Docs</a>
+    
+    
+    <span class="breadcrumbs__separator">/</span>
+    <span>Arena factory</span>
+    
+  </div>
+</nav>
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="arena-factory">
+<h1>Arena factory<a class="headerlink" href="#arena-factory" title="Link to this heading">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">keeks_elote.arena_factory</span></code> maps a rating system’s name to its elote competitor
+class, so building the arena that drives the backtests is one line:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">keeks_elote</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_arena</span>
+
+<span class="n">arena</span> <span class="o">=</span> <span class="n">create_arena</span><span class="p">(</span><span class="s2">"glicko"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">LambdaArena</span></code> is elote’s general-purpose arena, but building one by hand means
+importing it, picking the competitor class that implements the rating system you
+want, and remembering elote’s constructor keyword names. Every elote competitor
+class that implements a single rating system is mapped here;
+<code class="docutils literal notranslate"><span class="pre">BlendedCompetitor</span></code> is deliberately absent – it is a composite over other
+competitors, not a rating system of its own, so it has no name a
+<code class="docutils literal notranslate"><span class="pre">rating_system</span></code> argument could mean.</p>
+<section id="supported-rating-systems">
+<h2>Supported rating systems<a class="headerlink" href="#supported-rating-systems" title="Link to this heading">¶</a></h2>
+<dl class="py data">
+<dt class="sig sig-object py" id="keeks_elote.arena_factory.RATING_SYSTEMS">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.arena_factory.</span></span><span class="sig-name descname"><span class="pre">RATING_SYSTEMS</span></span><a class="headerlink" href="#keeks_elote.arena_factory.RATING_SYSTEMS" title="Link to this definition">¶</a></dt>
+<dd><p>Every supported <code class="docutils literal notranslate"><span class="pre">rating_system</span></code> name, mapped to the elote competitor class
+that implements it. The names are the factory’s public vocabulary:</p>
+<p><code class="docutils literal notranslate"><span class="pre">bradley-terry</span></code>, <code class="docutils literal notranslate"><span class="pre">colley</span></code>, <code class="docutils literal notranslate"><span class="pre">dwz</span></code>, <code class="docutils literal notranslate"><span class="pre">ecf</span></code>, <code class="docutils literal notranslate"><span class="pre">elo</span></code>, <code class="docutils literal notranslate"><span class="pre">glicko</span></code>,
+<code class="docutils literal notranslate"><span class="pre">glicko2</span></code>, <code class="docutils literal notranslate"><span class="pre">keener</span></code>, <code class="docutils literal notranslate"><span class="pre">massey</span></code>, <code class="docutils literal notranslate"><span class="pre">pythagorean</span></code>, <code class="docutils literal notranslate"><span class="pre">trueskill</span></code>, <code class="docutils literal notranslate"><span class="pre">whr</span></code></p>
+<p>An unknown name raises a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> listing the supported ones.</p>
+</dd></dl>
+
+</section>
+<section id="the-factory">
+<h2>The factory<a class="headerlink" href="#the-factory" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="keeks_elote.arena_factory.create_arena">
+<span class="sig-prename descclassname"><span class="pre">keeks_elote.arena_factory.</span></span><span class="sig-name descname"><span class="pre">create_arena</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rating_system</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'glicko'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">arena_kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#keeks_elote.arena_factory.create_arena" title="Link to this definition">¶</a></dt>
+<dd><p>Builds a configured elote <code class="docutils literal notranslate"><span class="pre">LambdaArena</span></code> for a named rating system.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rating_system</strong> – One of the names in <a class="reference internal" href="#keeks_elote.arena_factory.RATING_SYSTEMS" title="keeks_elote.arena_factory.RATING_SYSTEMS"><code class="xref py py-data docutils literal notranslate"><span class="pre">RATING_SYSTEMS</span></code></a>. Defaults
+to <code class="docutils literal notranslate"><span class="pre">&quot;glicko&quot;</span></code>.</p></li>
+<li><p><strong>base_kwargs</strong> – Keyword arguments for the rating system’s competitor
+constructor – <code class="docutils literal notranslate"><span class="pre">{&quot;initial_rating&quot;:</span> <span class="pre">2100}</span></code> for Glicko,
+for example. Defaults to the competitor class’s own
+defaults.</p></li>
+<li><p><strong>arena_kwargs</strong> – Further keyword arguments are forwarded to the
+<code class="docutils literal notranslate"><span class="pre">LambdaArena</span></code> constructor itself, so callers can pass
+<code class="docutils literal notranslate"><span class="pre">func</span></code> (the comparison function for bare <code class="docutils literal notranslate"><span class="pre">(a,</span> <span class="pre">b)</span></code>
+pairs) or <code class="docutils literal notranslate"><span class="pre">initial_state</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A <code class="docutils literal notranslate"><span class="pre">LambdaArena</span></code> whose competitors are the named rating system,
+satisfying the <code class="xref py py-class docutils literal notranslate"><span class="pre">RatingArena</span></code>
+protocol <a class="reference internal" href="backtest.html#keeks_elote.backtest.Backtest" title="keeks_elote.backtest.Backtest"><code class="xref py py-class docutils literal notranslate"><span class="pre">Backtest</span></code></a> drives.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">rating_system</span></code> is not a supported name. The
+message lists the supported names.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>The arena’s default comparison function always answers “the first competitor
+wins”. That is the right default for the backtest flow – every game’s recorded
+result is forwarded to the arena, so the comparison function is never consulted
+– but callers rating bare <code class="docutils literal notranslate"><span class="pre">(a,</span> <span class="pre">b)</span></code> pairs, where the arena really does have to
+decide, should supply their own <code class="docutils literal notranslate"><span class="pre">func</span></code>.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+
+
+<h3 class="sr-only">Table of Contents</h3>
+
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cfb.html">College football, one bet at a time</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl.html">A real Premier League season, priced against closing lines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epl_1x2.html">The full 1X2 book: home, draw, away</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cfb_weekly_portfolio.html">One week, one portfolio decision</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="backtest.html">Backtest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multi_outcome_backtest.html">Multi-outcome backtest</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Arena factory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="portfolio_backtest.html">Weekly-portfolio backtest</a></li>
+</ul>
+
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+<footer class="footer">
+  <div class="footer__inner">
+    
+    
+    <div class="footer__links">
+      
+        <a href="https://github.com/wdm0006" class="footer__link" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      
+        <a href="https://www.linkedin.com/in/wmcginnis/" class="footer__link" target="_blank" rel="noopener noreferrer">
+          LinkedIn
+        </a>
+      
+        <a href="https://x.com/willmcginniser" class="footer__link" target="_blank" rel="noopener noreferrer">
+          Twitter
+        </a>
+      
+    </div>
+    
+
+    
+    <p class="footer__copy">
+      
+        &copy; 2026, Will McGinnis
+      
+    </p>
+  </div>
+</footer>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.querySelector('.nav-toggle');
+    const nav = document.querySelector('.nav');
+    if (toggle && nav) {
+      toggle.addEventListener('click', function() {
+        nav.classList.toggle('is-open');
+        const isOpen = nav.classList.contains('is-open');
+        toggle.setAttribute('aria-expanded', isOpen);
+      });
+    }
+  });
+</script>
+
+  </body>
+</html>
