@@ -132,36 +132,26 @@ def two_period_schedule():
     }
 
 
-class TestUpstreamSettlementOverCredit:
+class TestFairDutchBookBreaksEven:
     """Characterization of keeks' winning-leg settlement, at the keeks boundary.
 
-    ``RepeatedMultiOutcomeSimulator.evaluate_strategy`` credits the realized
-    leg ``deposit(payoff * stake)`` and never debits that leg's own stake,
-    while every losing leg is charged ``withdraw(loss * stake)``. Under the
-    decimal-odds convention both this repository and keeks'
-    ``MultiOutcomeKellyCriterion`` document (``a_i = payoff_i - 1``; a winning
-    leg pays its payoff times its stake, stake included), that over-credits
-    the winning leg by exactly one stake unit.
+    keeks 0.9.0's ``RepeatedMultiOutcomeSimulator.evaluate_strategy`` settles
+    the realized leg ``deposit((payoff - 1) * stake)`` without ever debiting
+    that leg's own stake, and charges every losing leg ``withdraw(loss * stake)``.
+    Under the decimal-odds convention both this repository and keeks'
+    ``MultiOutcomeKellyCriterion`` document (``a_i = payoff_i - 1``; the stake
+    rides on the realized leg), that is correct accounting: the bankroll keeps
+    the winning stake and gains its net win, so a fully hedged book at exactly
+    fair odds breaks even whichever leg lands.
 
-    The cleanest proof is a fully hedged book at exactly fair odds, which must
-    break even whichever leg lands: staking ``s_i = p_i`` of the bankroll at
-    ``payoff_i = 1 / p_i`` returns ``s_i * payoff_i`` = one bankroll unit
-    however the draw falls, against ``sum(s_i)`` = one unit staked. So the
-    fair book below is zero-edge and the correct closing balance is
-    ``1000.0`` for every realized leg. keeks 0.8.0 returns 1500.0 / 1250.0 /
-    1250.0 instead -- a risk-free 25-50% -- because each winning stake is
-    never at risk.
-
-    These assertions therefore pin an UPSTREAM DEFECT, not correct
-    accounting. The fix belongs in
-    ``keeks.multi_outcome.simulators.RepeatedMultiOutcomeSimulator.evaluate_strategy``
-    (the ``amt = (self.payoffs[leg] * stake) - self.transaction_costs``
-    line), which this repository cannot reach: the simulator's
-    ``_validate_strategy_odds`` rejects a payoffs mismatch between simulator
-    and strategy, so there is no local repricing that hands the simulator net
-    odds while Kelly sizes from decimals. When keeks corrects it, this test
-    goes red loudly -- naming the cause -- instead of every 1X2 ``pnl()`` /
-    ``roi()`` number moving silently.
+    The proof is the same dutch book as before: staking ``s_i = p_i`` of the
+    bankroll at ``payoff_i = 1 / p_i`` returns ``s_i * payoff_i`` = one
+    bankroll unit however the draw falls, against ``sum(s_i)`` = one unit
+    staked. keeks 0.8.0 over-credited the winning leg by one stake unit
+    (1500.0 / 1250.0 / 1250.0 closing balances); the 0.9.0 breaking sweep
+    corrected it, and every realized leg now closes at ``1000.0`` -- the
+    risk-free 25-50% is gone and 1X2 P&L is comparable to the binary
+    backtest's. This test stays red loudly if a future keeks regresses.
     """
 
     # A fair book: probabilities (0.5, 0.25, 0.25) priced at their reciprocals.
@@ -180,29 +170,21 @@ class TestUpstreamSettlementOverCredit:
         simulator = RepeatedMultiOutcomeSimulator(
             payoffs=self.FAIR_PAYOFFS,
             loss=1.0,
-            transaction_costs=0.0,
+            fee_per_bet=0.0,
             probabilities=probabilities,
             trials=1,
             seed=7,
         )
-        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None)
         simulator.evaluate_strategy(FixedVectorStrategy(self.FAIR_STAKE_FRACTIONS), bankroll)
         return bankroll.total_funds
 
     @pytest.mark.parametrize(
-        "leg, over_credited_balance",
-        [
-            # Correct decimal accounting closes at 1000.0 in all three rows --
-            # the wager is a fully hedged dutch book at exactly fair odds.
-            # The surplus is the winning stake the upstream settlement never
-            # debits: 500.0 on leg 0, 250.0 on legs 1 and 2.
-            (0, 1500.0),
-            (1, 1250.0),
-            (2, 1250.0),
-        ],
+        "leg",
+        [0, 1, 2],
     )
-    def test_fair_dutch_book_returns_a_guaranteed_profit(self, leg, over_credited_balance):
-        assert self.settle_forcing(leg) == pytest.approx(over_credited_balance)
+    def test_fair_dutch_book_breaks_even(self, leg):
+        assert self.settle_forcing(leg) == pytest.approx(STARTING_FUNDS)
 
 
 class TestExactlyOneSettlementLedger:
@@ -220,7 +202,7 @@ class TestExactlyOneSettlementLedger:
 
     def run(self, seed):
         backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
-        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None)
         backtest.run_explicit(
             two_period_schedule(),
             FixedFractionStrategy(0.1),
@@ -257,20 +239,16 @@ class TestExactlyOneSettlementLedger:
             stakes = tuple(round(bettable * 0.1, 2) for _ in range(3))
 
             # Exactly one leg settles as a win and every other staked leg as a
-            # full-stake loss -- but the two won-leg expressions below encode
-            # the UPSTREAM OVER-CREDIT documented in
-            # TestUpstreamSettlementOverCredit, not correct decimal
-            # accounting. keeks credits the winning leg `payoff * stake` with
-            # no matching stake debit, so its return is gross rather than net
-            # and the trailing `+ stakes[won_leg]` cancels the winning stake
-            # out of the risked total -- i.e. that stake is never at risk.
-            # Correct accounting would be `(payoffs[won_leg] - 1) * stakes[won_leg]`
-            # on the return and `payoffs[won_leg] * stakes[won_leg] - sum(stakes)`
-            # on the profit. The expressions are left as they are because they
-            # correctly describe what the code does today.
+            # full-stake loss, under keeks 0.9's corrected decimal accounting:
+            # the realized leg keeps its stake and gains (payoff - 1) * stake,
+            # so its return is (payoffs[won_leg] - 1) * stakes[won_leg] over the
+            # bankroll before the trial, and the game's net profit is
+            # payoffs[won_leg] * stakes[won_leg] - sum(stakes). (keeks 0.8.0
+            # over-credited the winning leg by one stake unit; see
+            # TestFairDutchBookBreaksEven.)
             returns = [-1.0 * stake / bankroll_before for stake in stakes]
-            returns[won_leg] = record["payoffs"][won_leg] * stakes[won_leg] / bankroll_before
-            profit = record["payoffs"][won_leg] * stakes[won_leg] - sum(stakes) + stakes[won_leg]
+            returns[won_leg] = (record["payoffs"][won_leg] - 1.0) * stakes[won_leg] / bankroll_before
+            profit = record["payoffs"][won_leg] * stakes[won_leg] - sum(stakes)
 
             assert record["won_leg"] == won_leg
             assert record["probabilities"] == pytest.approx(self.BOOK)
@@ -326,7 +304,7 @@ class TestFlowEndToEnd:
 
     def run(self, seed=None):
         backtest = MultiOutcomeBacktest(create_arena("elo"), draw_rate=0.25)
-        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=0.5, max_draw_down=None)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=0.5, max_transaction_loss=None)
         strategy = MultiOutcomeKellyCriterion(payoffs=(2.0, 3.0, 3.0), loss=1.0)
         backtest.run_explicit(
             self.SCHEDULE, strategy, bankroll, period_to_start_betting=1, seed=seed, settlement="simulated"
@@ -382,7 +360,7 @@ class TestRatingAndLedgerBoundaries:
         backtest.run_explicit(
             {0: [game("A", "B", 1, 1), game("C", "D", 2, 0), game("E", "F", 0, 1)]},
             FixedFractionStrategy(0.1),
-            BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None),
+            BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None),
             period_to_start_betting=10,
             seed=1,
             settlement="simulated",
@@ -403,7 +381,7 @@ class TestRatingAndLedgerBoundaries:
         backtest.run_explicit(
             {0: [game("A", "B", None, None)]},
             FixedFractionStrategy(0.1),
-            BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None),
+            BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None),
             period_to_start_betting=10,
             seed=1,
             settlement="simulated",
@@ -417,7 +395,7 @@ class TestRatingAndLedgerBoundaries:
         backtest.run_explicit(
             {1: [game("A", "B", 1, 0, draw_odds=None)]},
             FixedFractionStrategy(0.1),
-            BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None),
+            BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None),
             period_to_start_betting=0,
             seed=1,
             settlement="simulated",
@@ -427,7 +405,7 @@ class TestRatingAndLedgerBoundaries:
 
     def test_strategy_failure_is_recorded_and_the_run_continues(self):
         backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
-        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None)
         backtest.run_explicit(
             {1: [game("A", "B", 1, 0), game("C", "D", 2, 1)]},
             BoomStrategy(),
@@ -447,7 +425,7 @@ class TestRatingAndLedgerBoundaries:
 
     def test_zero_fraction_quotes_are_flagged_as_skipped(self):
         backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
-        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None)
         backtest.run_explicit(
             {1: [game("A", "B", 1, 0)]},
             FixedFractionStrategy(0.0),
@@ -474,7 +452,7 @@ class TestRecordedSettlement:
 
     def run(self, schedule, strategy, seed=None, **kwargs):
         backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
-        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None)
         backtest.run_explicit(schedule, strategy, bankroll, period_to_start_betting=0, seed=seed, **kwargs)
         return backtest, bankroll
 
@@ -533,8 +511,108 @@ class TestRecordedSettlement:
     def test_unknown_settlement_raises_before_any_work(self):
         arena = StubArena()
         backtest = MultiOutcomeBacktest(arena)
-        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_draw_down=None)
+        bankroll = BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None)
         with pytest.raises(ValueError, match="settlement"):
             backtest.run_explicit(two_period_schedule(), FixedFractionStrategy(), bankroll, settlement="bogus")
         assert arena.matchups == []
         assert backtest.bet_history == []
+
+
+class HookStrategy:
+    """A duck-typed strategy whose settlement hook is configurable."""
+
+    def __init__(self, explode=False):
+        self.explode = explode
+        self.calls = []
+
+    def evaluate(self, probabilities, current_bankroll):
+        return [0.1, 0.1, 0.1]
+
+    def record_settlement(self, won, realized_returns):
+        if self.explode:
+            raise RuntimeError("hook exploded")
+        self.calls.append((won, realized_returns))
+
+
+class TestDataToleranceBoundaries:
+    """Records the schedule cannot price or rate are skipped loudly, not fatally."""
+
+    def bankroll(self):
+        return BankRoll(initial_funds=STARTING_FUNDS, percent_bettable=1.0, max_transaction_loss=None)
+
+    def test_unparseable_scores_drop_the_game_entirely(self):
+        arena = StubArena()
+        backtest = MultiOutcomeBacktest(arena, draw_rate=0.25)
+        backtest.run_explicit(
+            {1: [game("A", "B", "N/A", 1), game("C", "D", 2, 0)]},
+            FixedFractionStrategy(0.1),
+            self.bankroll(),
+            period_to_start_betting=0,
+            seed=1,
+        )
+        # The well-formed game rated and bet; the unparseable one is not
+        # silently treated as a draw.
+        assert len(arena.matchups) == 1
+        assert len(backtest.bet_history) == 1
+
+    def test_invalid_leg_odds_are_rated_but_not_bet(self):
+        arena = StubArena()
+        backtest = MultiOutcomeBacktest(arena, draw_rate=0.25)
+        backtest.run_explicit(
+            {1: [game("A", "B", 1, 0, home_odds="expensive")]},
+            FixedFractionStrategy(0.1),
+            self.bankroll(),
+            period_to_start_betting=0,
+            seed=1,
+        )
+        assert len(arena.matchups) == 1
+        assert backtest.bet_history == []
+
+    def test_non_dict_and_label_less_records_are_dropped(self):
+        arena = StubArena()
+        backtest = MultiOutcomeBacktest(arena, draw_rate=0.25)
+        backtest.run_explicit(
+            {1: ["not a game", {"home": "A", "home_score": 1, "away_score": 0}, game("C", "D", 2, 1)]},
+            FixedFractionStrategy(0.1),
+            self.bankroll(),
+            period_to_start_betting=0,
+            seed=1,
+        )
+        assert len(arena.matchups) == 1  # only C vs D
+        assert len(backtest.bet_history) == 1
+
+    def test_malformed_schedules_raise_type_errors(self):
+        backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
+        with pytest.raises(TypeError, match="Expected a dict"):
+            backtest.run_explicit("not a schedule", FixedFractionStrategy(0.1), self.bankroll(), seed=1)
+        with pytest.raises(TypeError, match="list of games"):
+            backtest.run_explicit({1: "not a list"}, FixedFractionStrategy(0.1), self.bankroll(), seed=1)
+
+    def test_the_settlement_hook_sees_every_settled_game(self):
+        strategy = HookStrategy()
+        backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
+        backtest.run_explicit(
+            {1: [game("A", "B", 1, 0), game("C", "D", 2, 1)]},
+            strategy,
+            self.bankroll(),
+            period_to_start_betting=0,
+            seed=1,
+        )
+        assert len(strategy.calls) == 2
+        for won, realized_returns in strategy.calls:
+            assert len(won) == 3
+            assert len(realized_returns) == 3
+
+    def test_a_raising_settlement_hook_does_not_break_the_run(self):
+        strategy = HookStrategy(explode=True)
+        backtest = MultiOutcomeBacktest(StubArena(), draw_rate=0.25)
+        bankroll = self.bankroll()
+        backtest.run_explicit(
+            {1: [game("A", "B", 1, 0), game("C", "D", 2, 1)]},
+            strategy,
+            bankroll,
+            period_to_start_betting=0,
+            seed=1,
+        )
+        assert len(backtest.bet_history) == 2
+        assert bankroll.total_funds > 0  # settlements happened despite the dead hook

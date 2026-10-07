@@ -69,8 +69,8 @@ data = {
 arena = create_arena("glicko")
 
 # The bankroll and a betting strategy from keeks.
-bankroll = BankRoll(initial_funds=10000, percent_bettable=0.5, max_draw_down=1.0)
-strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost=0.0)
+bankroll = BankRoll(initial_funds=10000, percent_bettable=0.5, max_transaction_loss=1.0)
+strategy = KellyCriterion(payoff=1.0, loss=1.0, transaction_cost_rate=0.0)
 
 # Periods up to `period_to_start_betting` are dry runs that only build ratings;
 # real bets begin after it. Returns the updated bankroll.
@@ -101,7 +101,7 @@ is recorded the moment it fails (`fraction` of `None` plus the error message), a
 reasons, skipped, wins/losses and net profit -- so a systematically broken strategy
 reads as `failed_bets: N`, never as an empty, plausible-looking run.
 
-Strategies that maintain state through keeks' `record_result(won, return_pct)` hook --
+Strategies that maintain state through keeks' `record_settlement(won, realized_returns)` hook --
 `DynamicBankrollManagement`'s streak and volatility windows, for example -- are notified
 of every bet the run actually settles, so their sizing adapts as the backtest progresses.
 Strategies without the hook are unaffected, and stateful strategies are always notified
@@ -169,7 +169,10 @@ data = load_dataframe(df)                 # same shape, from a DataFrame
 ```
 
 See [`examples/cfb.py`](examples/cfb.py) for a complete end-to-end example using real
-college-football data, [`examples/epl.py`](examples/epl.py) for the same flow over
+college-football data, [`examples/cfb_weekly_portfolio.py`](examples/cfb_weekly_portfolio.py)
+for the same season replayed as weekly portfolios -- each week's slate of games sized as one
+joint allocation through keeks' allocation layer, next to the per-bet baseline,
+[`examples/epl.py`](examples/epl.py) for the same flow over
 the real 2023-24 Premier League season -- `load_csv`, `create_arena`, decimal odds,
 `edge`, and the `pnl`/`roi` metrics -- and [`examples/epl_1x2.py`](examples/epl_1x2.py)
 for the 1X2 flow below over a synthetic draw-inclusive season.
@@ -193,7 +196,7 @@ from keeks.multi_outcome import MultiOutcomeKellyCriterion
 from keeks_elote import MultiOutcomeBacktest, create_arena, pnl
 
 backtest = MultiOutcomeBacktest(create_arena("elo"), draw_rate=0.25)
-bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_draw_down=None)
+bankroll = BankRoll(initial_funds=1000.0, percent_bettable=1.0, max_transaction_loss=None)
 backtest.run_explicit(
     data,                                       # period-keyed 1X2 game records
     MultiOutcomeKellyCriterion(payoffs=(2.0, 3.0, 3.0), loss=1.0),
@@ -214,20 +217,14 @@ Recorded settlement debits every stake and credits the winning leg `payoff * sta
 (net `(payoff - 1) * stake`) directly on the bankroll, so `pnl`/`roi` are comparable with
 the binary `Backtest`'s and a fully hedged fair book returns exactly the bankroll.
 
-**`settlement="simulated"` only -- known upstream over-credit: 1X2 P&L is inflated.** keeks 0.8.0's `RepeatedMultiOutcomeSimulator.evaluate_strategy`
-credits the realized leg `payoff * stake` without debiting that leg's own stake, while
-every losing leg is charged its full stake -- so the winning leg is over-credited by
-exactly one stake unit and every `pnl`/`roi` number a 1X2 run reports is inflated by the
-sum of the winning stakes. A fully hedged book at exactly fair odds, which must break
-even, prints a risk-free 25-50% instead. The defect is in keeks and cannot be corrected
-here: the simulator rejects a payoffs mismatch between itself and the strategy, so there
-is no local repricing that hands it net odds while Kelly sizes from decimals. **1X2 P&L
-is therefore not comparable to the binary `Backtest`'s**, whose settlement debits each
-stake and is correct -- compare simulated 1X2 runs only against other simulated runs (`seed` is only meaningful in this mode). A characterization
-test pins today's upstream arithmetic so the change is loud when keeks fixes it.
+keeks 0.8.0 over-credited a 1X2 run's realized leg by one stake unit -- every `pnl`/`roi`
+number it reported was inflated, and a fully hedged fair book printed a risk-free 25-50%
+instead of breaking even. The defect was fixed in the 0.9.0 breaking sweep, so the
+simulated path (`settlement="simulated"`) is exact under the same conventions too; the
+fair-book characterization test asserts break-even and stays loud if the arithmetic ever
+drifts again.
 
-This flow uses keeks' `multi_outcome` module. The declared keeks >= 0.8.0 floor is
-available from PyPI and is installed with the package.
+This flow uses keeks' `multi_outcome` module, installed with the package.
 
 ## License
 

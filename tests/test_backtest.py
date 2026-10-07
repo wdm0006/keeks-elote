@@ -42,9 +42,9 @@ def mock_bankroll(mocker):
 
     set_funds(1000.0)
 
-    # Updated for keeks 0.3.0+: bet() and add_funds() instead of win_bet()/lose_bet()
+    # Updated for keeks 0.3.0+: bet() and deposit() instead of win_bet()/lose_bet()
     bankroll.bet = mocker.Mock(side_effect=lambda amount: set_funds(bankroll.total_funds - amount))
-    bankroll.add_funds = mocker.Mock(side_effect=lambda amount: set_funds(bankroll.total_funds + amount))
+    bankroll.deposit = mocker.Mock(side_effect=lambda amount: set_funds(bankroll.total_funds + amount))
     return bankroll
 
 
@@ -165,18 +165,18 @@ class TestBacktest:
         mock_strategy.evaluate.assert_any_call(probability=0.4, current_bankroll=mocker.ANY)  # P2: Eval C vs A
 
         # 2. Check Bankroll Updates (Only for non-dry-run periods: P2, P3)
-        # keeks 0.3.0+ API: bet() is called for all bets, add_funds() for wins
+        # keeks 0.3.0+ API: bet() is called for all bets, deposit() for wins
         # Each period has 2 bets (winner and loser), so 4 total bets in P2 and P3
         assert mock_bankroll.bet.call_count == 4  # 2 bets in P2, 2 bets in P3
-        assert mock_bankroll.add_funds.call_count == 2  # 1 win in P2, 1 win in P3
+        assert mock_bankroll.deposit.call_count == 2  # 1 win in P2, 1 win in P3
 
         # Check bet() calls (should be called for all bets)
         mock_bankroll.bet.assert_any_call(mocker.ANY)
 
-        # Check add_funds() calls for wins only
+        # Check deposit() calls for wins only
         # Win amount = bet_amount + bet_amount * payoff
-        mock_bankroll.add_funds.assert_any_call(mocker.ANY)  # Win in P2
-        mock_bankroll.add_funds.assert_any_call(mocker.ANY)  # Win in P3
+        mock_bankroll.deposit.assert_any_call(mocker.ANY)  # Win in P2
+        mock_bankroll.deposit.assert_any_call(mocker.ANY)  # Win in P3
 
         # 3. Check Arena Updates (Should happen for P1, P2, P3)
         assert mock_arena.tournament.call_count == 3
@@ -202,7 +202,7 @@ class TestBacktest:
         mock_strategy.evaluate.assert_not_called()
         # Bankroll methods should not be called (keeks 0.3.0+ API)
         mock_bankroll.bet.assert_not_called()
-        mock_bankroll.add_funds.assert_not_called()
+        mock_bankroll.deposit.assert_not_called()
 
     def test_run_explicit_prices_next_period_after_rating_update(self, mock_strategy, mock_bankroll, mock_prepare_data):
         class RatingStateArena:

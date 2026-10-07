@@ -305,10 +305,17 @@ class _SettlementObserver:
     def update_bankroll(self, total_funds: float) -> None:
         self._forward("update_bankroll", total_funds)
 
-    def record_settlement(self, won_leg: Optional[int], return_pcts: Tuple[float, ...]) -> None:
-        self.won_leg = won_leg
-        self.return_pcts = tuple(return_pcts)
-        self._forward("record_settlement", won_leg, self.return_pcts)
+    def record_settlement(self, won: Tuple[Optional[bool], ...], realized_returns: Tuple[float, ...]) -> None:
+        """Records one settled batch in keeks 0.9's unified hook contract.
+
+        ``won`` carries one per-leg outcome flag (the realized leg ``True``,
+        the others ``False``, every leg ``None`` on a void round) and
+        ``realized_returns`` one signed net return per leg. The ledger's
+        ``won_leg`` index is read back off the flags.
+        """
+        self.won_leg = won.index(True) if True in won else None
+        self.return_pcts = tuple(realized_returns)
+        self._forward("record_settlement", won, self.return_pcts)
 
 
 class MultiOutcomeBacktest:
@@ -370,31 +377,12 @@ class MultiOutcomeBacktest:
     skipped: they produce no ledger entry and, when unratable, no rating
     update either.
 
-    .. warning::
-
-       **Simulated settlement only -- known upstream over-credit: 1X2 P&L is inflated.**
-       The default ``settlement="recorded"`` path bypasses the simulator and is
-       not affected. keeks 0.8.0's
-       :meth:`keeks.multi_outcome.RepeatedMultiOutcomeSimulator.evaluate_strategy`
-       credits the realized leg ``payoff * stake`` without debiting that
-       leg's own stake, while every losing leg is charged its full stake. The
-       winning leg is therefore over-credited by exactly one stake unit, so
-       every ``profit``, ``bankroll_after`` and ``returns`` value this ledger
-       records -- and every :func:`pnl` and :func:`roi` number derived from
-       it -- is inflated by the sum of the winning stakes. A fully hedged
-       book at exactly fair odds, which must break even, prints a risk-free
-       25-50% instead. The defect is in keeks and cannot be corrected here:
-       the simulator rejects a payoffs mismatch between itself and the
-       strategy, so there is no local repricing that hands it net odds while
-       Kelly sizes from decimals.
-
-       Consequence for readers of a run: **1X2 P&L is not comparable to the
-       binary** :class:`keeks_elote.backtest.Backtest` **backtest's**, whose
-       settlement debits each stake and is correct. Compare 1X2 runs only
-       against other 1X2 runs. The characterization test
-       ``TestUpstreamSettlementOverCredit`` in
-       ``tests/test_multi_outcome_backtest.py`` pins today's upstream
-       arithmetic so the change is loud when keeks fixes it.
+    keeks 0.9's :meth:`keeks.multi_outcome.RepeatedMultiOutcomeSimulator.evaluate_strategy`
+    settles the realized leg at ``(payoff - 1) * stake`` with every losing leg charged
+    its full stake, so a fully hedged book at exactly fair odds breaks even. (keeks
+    0.8.0 over-credited the realized leg by one stake unit; the defect was fixed in
+    the 0.9.0 breaking sweep, and 1X2 P&L is therefore directly comparable to the
+    binary :class:`keeks_elote.backtest.Backtest` backtest's from this release on.)
     """
 
     def __init__(self, arena: RatingArena, draw_rate: float = 0.25):
@@ -443,12 +431,15 @@ class MultiOutcomeBacktest:
         stakes = [bettable_funds * fraction for fraction in fractions]
         # Fractions sum to <= 1, but float noise must not trip BankRoll.bet's cap.
         bankroll.bet(min(sum(stakes), bettable_funds))
-        bankroll.add_funds(payoffs[won_leg] * stakes[won_leg])
+        bankroll.deposit(payoffs[won_leg] * stakes[won_leg])
         returns = tuple(
             ((payoffs[leg] - 1.0) * stake if leg == won_leg else -stake) / total_funds
             for leg, stake in enumerate(stakes)
         )
-        observer.record_settlement(won_leg, returns)
+        # keeks 0.9's settlement contract: the realized leg ``True``, every other
+        # leg ``False`` (declined legs included -- the draw realizes the whole
+        # market), signed net return per leg.
+        observer.record_settlement(tuple(leg == won_leg for leg in range(len(stakes))), returns)
 
     def _settle_game(
         self,
@@ -499,7 +490,7 @@ class MultiOutcomeBacktest:
                 simulator = RepeatedMultiOutcomeSimulator(
                     payoffs=payoffs,
                     loss=1.0,
-                    transaction_costs=0.0,
+                    fee_per_bet=0.0,
                     probabilities=book,
                     trials=1,
                     seed=game_seed,

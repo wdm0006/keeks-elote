@@ -14,6 +14,7 @@ from keeks_elote import (
     data_handling,
     model_evaluation,
     multi_outcome_backtest,
+    portfolio_backtest,
     rating_arena,
     types,
 )
@@ -26,6 +27,7 @@ PINNED_SURFACE = [
     "OneXTwoGameRecord",
     "ProjectionRecord",
     "RatingArena",
+    "WeeklyPortfolioBacktest",
     "american_to_decimal",
     "calculate_probabilities",
     "create_arena",
@@ -67,6 +69,7 @@ def test_reexports_are_the_source_objects():
     assert keeks_elote.create_arena is arena_factory.create_arena
     assert keeks_elote.MultiOutcomeBacktest is multi_outcome_backtest.MultiOutcomeBacktest
     assert keeks_elote.one_x_two_probabilities is multi_outcome_backtest.one_x_two_probabilities
+    assert keeks_elote.WeeklyPortfolioBacktest is portfolio_backtest.WeeklyPortfolioBacktest
     assert keeks_elote.RatingArena is rating_arena.RatingArena
     assert keeks_elote.GameRecord is types.GameRecord
     assert keeks_elote.MatchupTuple is types.MatchupTuple

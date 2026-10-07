@@ -105,7 +105,7 @@ def main() -> None:
     logger.info("Loaded %d games across %d periods.", total_games, len(periods))
 
     arena = create_arena("elo")
-    bankroll = BankRoll(initial_funds=STARTING_BANKROLL, percent_bettable=1.0, max_draw_down=None)
+    bankroll = BankRoll(initial_funds=STARTING_BANKROLL, percent_bettable=1.0, max_transaction_loss=None)
     # Payoffs here are the constructor's placeholder; the backtest reprices the
     # strategy per game with that game's decimal odds before staking it.
     strategy = MultiOutcomeKellyCriterion(payoffs=(2.0, 3.0, 3.0), loss=1.0)
