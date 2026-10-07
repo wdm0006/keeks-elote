@@ -38,6 +38,7 @@ PINNED_SURFACE = [
     "pnl",
     "prepare_data",
     "roi",
+    "score_projections",
     "summarize_bet_history",
     "to_decimal",
 ]

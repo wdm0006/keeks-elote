@@ -13,7 +13,7 @@ from keeks_elote.backtest import (
     to_decimal,
 )
 from keeks_elote.data_handling import load_csv, load_dataframe, prepare_data
-from keeks_elote.model_evaluation import calculate_probabilities
+from keeks_elote.model_evaluation import calculate_probabilities, score_projections
 from keeks_elote.multi_outcome_backtest import MultiOutcomeBacktest, one_x_two_probabilities
 from keeks_elote.portfolio_backtest import WeeklyPortfolioBacktest
 from keeks_elote.rating_arena import RatingArena
@@ -42,6 +42,7 @@ __all__ = [
     "pnl",
     "prepare_data",
     "roi",
+    "score_projections",
     "summarize_bet_history",
     "to_decimal",
 ]
