@@ -134,6 +134,26 @@ American-only input), `edge` (expected value per unit staked), `pnl`/`roi`
 (ledger profit and per-unit-staked return), and `summarize_bet_history` (the
 ledger aggregation behind `run_summary()`).
 
+### Comparing configurations by forecast quality
+
+Betting P&L is noisy and confounded by staking. To ask whether a rating system is well
+calibrated, score its `run_and_project` forecasts against the recorded results with
+`score_projections`, using a fresh arena per configuration:
+
+```python
+from keeks_elote import Backtest, create_arena, score_projections
+
+for system in ("elo", "glicko"):
+    projections = Backtest(create_arena(system)).run_and_project(data)
+    print(system, score_projections(projections, data))
+# {'n': ..., 'skipped': 0, 'accuracy': ..., 'log_loss': ..., 'brier': ...,
+#  'min_probability': ..., 'max_probability': ...}
+```
+
+`log_loss` clamps probabilities at `epsilon` (default `1e-15`); `min_probability` and
+`max_probability` are the raw extremes, so you can see whether the clamp bound. Projections
+with no matching recorded game count in `skipped`; with nothing scored the metrics are `None`.
+
 ### Odds formats and value metrics
 
 Game records accept prices in either format, and `to_decimal` converts any price explicitly:

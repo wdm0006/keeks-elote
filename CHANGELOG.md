@@ -1,6 +1,12 @@
 Unreleased
 ==========
 
+**Added:**
+ * `score_projections(projections, data)` scores `Backtest.run_and_project` forecasts against
+   the recorded results: `n`, `skipped`, `accuracy`, `log_loss`, `brier`, and the raw
+   `min_probability`/`max_probability` (so a reader can see whether the log-loss clamp
+   binds). Projections with no matching recorded game are counted in `skipped`.
+
 v0.4.0 — 2026-10-05
 ===================
 
