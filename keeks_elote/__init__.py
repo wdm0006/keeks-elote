@@ -12,7 +12,13 @@ from keeks_elote.backtest import (
     summarize_bet_history,
     to_decimal,
 )
-from keeks_elote.data_handling import load_csv, load_dataframe, prepare_data
+from keeks_elote.data_handling import (
+    load_csv,
+    load_dataframe,
+    load_one_x_two_csv,
+    load_one_x_two_dataframe,
+    prepare_data,
+)
 from keeks_elote.model_evaluation import calculate_probabilities, score_projections
 from keeks_elote.multi_outcome_backtest import MultiOutcomeBacktest, one_x_two_probabilities
 from keeks_elote.portfolio_backtest import WeeklyPortfolioBacktest
@@ -38,6 +44,8 @@ __all__ = [
     "edge",
     "load_csv",
     "load_dataframe",
+    "load_one_x_two_csv",
+    "load_one_x_two_dataframe",
     "one_x_two_probabilities",
     "pnl",
     "prepare_data",

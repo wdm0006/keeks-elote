@@ -29,59 +29,18 @@ Run from the ``examples/`` directory so the relative data path resolves::
     cd examples && ../.venv/bin/python epl_1x2.py
 """
 
-import csv
 import logging
-import math
 from collections import Counter
-from typing import Any, Dict, List
 
 from keeks.bankroll import BankRoll
 
-from keeks_elote import create_arena, pnl, roi
+from keeks_elote import create_arena, load_one_x_two_csv, pnl, roi
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 STARTING_BANKROLL = 1000.0
 DRAW_RATE = 0.25
-
-
-def _as_float(value: Any, field: str, line: int) -> float:
-    """Parses one fixture field as a finite float, failing loudly otherwise."""
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"Line {line}: field {field!r} is not a number: {value!r}") from exc
-    if not math.isfinite(parsed):
-        raise ValueError(f"Line {line}: field {field!r} is not finite: {value!r}")
-    return parsed
-
-
-def load_one_x_two_season(path: str) -> Dict[int, List[Dict[str, Any]]]:
-    """Loads the CSV fixture into period-keyed game records.
-
-    Each row needs ``period``, ``home``, ``away``, ``home_score``,
-    ``away_score``, and the three odds columns. Scores and odds are parsed as
-    floats here; a malformed fixture is an error, not something to guess
-    around.
-    """
-    periods: Dict[int, List[Dict[str, Any]]] = {}
-    with open(path, newline="", encoding="utf-8") as handle:
-        for line, row in enumerate(csv.DictReader(handle), start=2):
-            home, away = row.get("home"), row.get("away")
-            if not home or not away:
-                raise ValueError(f"Line {line}: game record is missing home/away labels: {row!r}")
-            game = {
-                "home": home,
-                "away": away,
-                "home_score": _as_float(row.get("home_score"), "home_score", line),
-                "away_score": _as_float(row.get("away_score"), "away_score", line),
-            }
-            for key in ("home_odds", "draw_odds", "away_odds"):
-                game[key] = _as_float(row.get(key), key, line)
-            period = int(_as_float(row.get("period"), "period", line))
-            periods.setdefault(period, []).append(game)
-    return periods
 
 
 def main() -> None:
@@ -100,7 +59,7 @@ def main() -> None:
     from keeks_elote.multi_outcome_backtest import MultiOutcomeBacktest
 
     logger.info("Loading synthetic 1X2 season data...")
-    periods = load_one_x_two_season("./data/epl_1x2_season.csv")
+    periods = load_one_x_two_csv("./data/epl_1x2_season.csv")
     total_games = sum(len(games) for games in periods.values())
     logger.info("Loaded %d games across %d periods.", total_games, len(periods))
 
