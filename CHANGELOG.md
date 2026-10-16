@@ -1,6 +1,10 @@
 Unreleased
 
 **Added:**
+ * `compare_rating_systems(data, systems=None, arena_kwargs=None)` scores every named rating
+   system's `run_and_project` forecasts on one dataset, each on a fresh arena, and returns
+   rows sorted by log loss (`None` last, then `error` rows). Frozen-data protocol with no
+   warm-up scoring cutoff; a system that raises is recorded as an `error` row.
  * `score_projections(projections, data)` scores `Backtest.run_and_project` forecasts against
    the recorded results: `n`, `skipped`, `accuracy`, `log_loss`, `brier`, and the raw
    `min_probability`/`max_probability` (so a reader can see whether the log-loss clamp
