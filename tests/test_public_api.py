@@ -30,6 +30,7 @@ PINNED_SURFACE = [
     "WeeklyPortfolioBacktest",
     "american_to_decimal",
     "calculate_probabilities",
+    "calibration_table",
     "create_arena",
     "edge",
     "load_csv",
@@ -41,6 +42,7 @@ PINNED_SURFACE = [
     "prepare_data",
     "roi",
     "score_projections",
+    "score_projections_by_period",
     "summarize_bet_history",
     "to_decimal",
 ]

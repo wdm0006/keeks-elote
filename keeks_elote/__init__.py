@@ -19,7 +19,12 @@ from keeks_elote.data_handling import (
     load_one_x_two_dataframe,
     prepare_data,
 )
-from keeks_elote.model_evaluation import calculate_probabilities, score_projections
+from keeks_elote.model_evaluation import (
+    calculate_probabilities,
+    calibration_table,
+    score_projections,
+    score_projections_by_period,
+)
 from keeks_elote.multi_outcome_backtest import MultiOutcomeBacktest, one_x_two_probabilities
 from keeks_elote.portfolio_backtest import WeeklyPortfolioBacktest
 from keeks_elote.rating_arena import RatingArena
@@ -40,6 +45,7 @@ __all__ = [
     "WeeklyPortfolioBacktest",
     "american_to_decimal",
     "calculate_probabilities",
+    "calibration_table",
     "create_arena",
     "edge",
     "load_csv",
@@ -51,6 +57,7 @@ __all__ = [
     "prepare_data",
     "roi",
     "score_projections",
+    "score_projections_by_period",
     "summarize_bet_history",
     "to_decimal",
 ]

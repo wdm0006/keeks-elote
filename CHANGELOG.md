@@ -1,6 +1,10 @@
 Unreleased
 
 **Added:**
+ * `score_projections_by_period(projections, data)` returns `{period: {n, skipped, accuracy,
+   log_loss, brier}}` and `calibration_table(projections, data, bins=10)` returns per-bin
+   `{lo, hi, n, mean_predicted, observed_rate}` (empty bins kept with `n=0`, rates `None`),
+   sharing `score_projections`' join logic. `score_projections` is unchanged.
  * `score_projections(projections, data)` scores `Backtest.run_and_project` forecasts against
    the recorded results: `n`, `skipped`, `accuracy`, `log_loss`, `brier`, and the raw
    `min_probability`/`max_probability` (so a reader can see whether the log-loss clamp
