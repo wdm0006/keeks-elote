@@ -91,3 +91,17 @@ def test_none_log_loss_sorts_after_scored_and_before_errors(monkeypatch):
     scored = compare_rating_systems(DATA, ["colley", "elo", "glicko"])
     assert [r["system"] for r in scored][-1] == "colley"
     assert all(r["log_loss"] is not None for r in scored[:2])
+
+
+def test_none_log_loss_row_sorts_after_scored_rows(monkeypatch):
+    real = me.score_projections
+    calls = []
+
+    def fake(projections, data, *a, **k):
+        calls.append(1)
+        return real([] if len(calls) == 1 else projections, data, *a, **k)
+
+    monkeypatch.setattr(me, "score_projections", fake)
+    rows = compare_rating_systems(DATA, ["colley", "elo"])
+    assert [r["system"] for r in rows] == ["elo", "colley"]
+    assert rows[1]["log_loss"] is None and rows[1]["n"] == 0
