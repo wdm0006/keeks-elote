@@ -31,6 +31,7 @@ PINNED_SURFACE = [
     "american_to_decimal",
     "calculate_probabilities",
     "calibration_table",
+    "compare_rating_systems",
     "create_arena",
     "edge",
     "load_csv",
@@ -71,6 +72,7 @@ def test_reexports_are_the_source_objects():
     assert keeks_elote.load_csv is data_handling.load_csv
     assert keeks_elote.load_dataframe is data_handling.load_dataframe
     assert keeks_elote.calculate_probabilities is model_evaluation.calculate_probabilities
+    assert keeks_elote.compare_rating_systems is model_evaluation.compare_rating_systems
     assert keeks_elote.create_arena is arena_factory.create_arena
     assert keeks_elote.MultiOutcomeBacktest is multi_outcome_backtest.MultiOutcomeBacktest
     assert keeks_elote.one_x_two_probabilities is multi_outcome_backtest.one_x_two_probabilities

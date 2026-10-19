@@ -22,6 +22,7 @@ from keeks_elote.data_handling import (
 from keeks_elote.model_evaluation import (
     calculate_probabilities,
     calibration_table,
+    compare_rating_systems,
     score_projections,
     score_projections_by_period,
 )
@@ -46,6 +47,7 @@ __all__ = [
     "american_to_decimal",
     "calculate_probabilities",
     "calibration_table",
+    "compare_rating_systems",
     "create_arena",
     "edge",
     "load_csv",

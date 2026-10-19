@@ -95,4 +95,5 @@ ledger into its profit and its per-unit-staked return.
    backtest
    multi_outcome_backtest
    arena_factory
+   compare_rating_systems
    portfolio_backtest

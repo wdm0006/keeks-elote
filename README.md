@@ -154,6 +154,11 @@ for system in ("elo", "glicko"):
 `max_probability` are the raw extremes, so you can see whether the clamp bound. Projections
 with no matching recorded game count in `skipped`; with nothing scored the metrics are `None`.
 
+To sweep every named rating system in one call (fresh arena each, sorted by log loss),
+use `compare_rating_systems(data)`. It scores frozen data with no warm-up cutoff, so its
+numbers are not comparable with walk-forward figures. A system that raises yields an
+`{"system": ..., "error": ...}` row instead of aborting the sweep.
+
 ### Odds formats and value metrics
 
 Game records accept prices in either format, and `to_decimal` converts any price explicitly:
