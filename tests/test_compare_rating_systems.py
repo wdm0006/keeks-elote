@@ -18,6 +18,11 @@ def _alone(name):
     return {"system": name, **score_projections(projections, DATA)}
 
 
+def _numeric(row):
+    # pytest.approx (>=9) rejects non-numeric values such as the system name.
+    return {k: v for k, v in row.items() if k != "system"}
+
+
 def test_rows_match_independent_runs_regardless_of_order():
     # Glicko's deviation decay reads the wall clock, so compare with a tolerance.
     names = ["elo", "glicko", "trueskill"]
@@ -25,8 +30,9 @@ def test_rows_match_independent_runs_regardless_of_order():
     reordered = {r["system"]: r for r in compare_rating_systems(DATA, names[::-1])}
     for name in names:
         assert set(rows[name]) == KEYS
-        assert rows[name] == pytest.approx(_alone(name), rel=1e-6)
-        assert reordered[name] == pytest.approx(rows[name], rel=1e-6)
+        assert _numeric(rows[name]) == pytest.approx(_numeric(_alone(name)), rel=1e-6)
+        assert _numeric(reordered[name]) == pytest.approx(_numeric(rows[name]), rel=1e-6)
+        assert rows[name]["system"] == reordered[name]["system"] == name
 
 
 def test_exact_values_for_elo_on_fixture():
