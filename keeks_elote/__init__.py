@@ -12,6 +12,7 @@ from keeks_elote.backtest import (
     summarize_bet_history,
     to_decimal,
 )
+from keeks_elote.comparison import compare_backtests
 from keeks_elote.data_handling import (
     load_csv,
     load_dataframe,
@@ -47,6 +48,7 @@ __all__ = [
     "american_to_decimal",
     "calculate_probabilities",
     "calibration_table",
+    "compare_backtests",
     "compare_rating_systems",
     "create_arena",
     "edge",

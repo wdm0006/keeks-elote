@@ -1,6 +1,13 @@
 Unreleased
 
 **Added:**
+ * `compare_backtests(data, configurations, *, period_to_start_betting=3,
+   price_bets_at_true_odds=True)` runs `Backtest.run_explicit` once per binary staking
+   configuration over one schedule. `configurations` maps labels to zero-argument factories
+   returning a fresh `(arena, strategy, bankroll)`; rows (input order, no ranking) carry
+   opening/closing funds, `pnl`, `roi`, the run summary (with failed-candidate counts and
+   reasons) and that run's `bet_history`. A failing factory or run raises `RuntimeError`
+   naming the configuration, with the original exception as its cause.
  * `compare_rating_systems(data, systems=None, arena_kwargs=None)` scores every named rating
    system's `run_and_project` forecasts on one dataset, each on a fresh arena, and returns
    rows sorted by log loss (`None` last, then `error` rows). Frozen-data protocol with no

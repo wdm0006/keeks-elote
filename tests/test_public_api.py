@@ -11,6 +11,7 @@ import keeks_elote
 from keeks_elote import (
     arena_factory,
     backtest,
+    comparison,
     data_handling,
     model_evaluation,
     multi_outcome_backtest,
@@ -31,6 +32,7 @@ PINNED_SURFACE = [
     "american_to_decimal",
     "calculate_probabilities",
     "calibration_table",
+    "compare_backtests",
     "compare_rating_systems",
     "create_arena",
     "edge",
@@ -72,6 +74,7 @@ def test_reexports_are_the_source_objects():
     assert keeks_elote.load_csv is data_handling.load_csv
     assert keeks_elote.load_dataframe is data_handling.load_dataframe
     assert keeks_elote.calculate_probabilities is model_evaluation.calculate_probabilities
+    assert keeks_elote.compare_backtests is comparison.compare_backtests
     assert keeks_elote.compare_rating_systems is model_evaluation.compare_rating_systems
     assert keeks_elote.create_arena is arena_factory.create_arena
     assert keeks_elote.MultiOutcomeBacktest is multi_outcome_backtest.MultiOutcomeBacktest
