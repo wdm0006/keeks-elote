@@ -33,6 +33,8 @@ PINNED_SURFACE = [
     "calculate_probabilities",
     "calibration_table",
     "compare_backtests",
+    "compare_one_x_two_backtests",
+    "compare_portfolio_backtests",
     "compare_rating_systems",
     "create_arena",
     "edge",
@@ -75,6 +77,8 @@ def test_reexports_are_the_source_objects():
     assert keeks_elote.load_dataframe is data_handling.load_dataframe
     assert keeks_elote.calculate_probabilities is model_evaluation.calculate_probabilities
     assert keeks_elote.compare_backtests is comparison.compare_backtests
+    assert keeks_elote.compare_one_x_two_backtests is comparison.compare_one_x_two_backtests
+    assert keeks_elote.compare_portfolio_backtests is comparison.compare_portfolio_backtests
     assert keeks_elote.compare_rating_systems is model_evaluation.compare_rating_systems
     assert keeks_elote.create_arena is arena_factory.create_arena
     assert keeks_elote.MultiOutcomeBacktest is multi_outcome_backtest.MultiOutcomeBacktest

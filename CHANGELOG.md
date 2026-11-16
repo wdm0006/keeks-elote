@@ -1,6 +1,11 @@
 Unreleased
 
 **Added:**
+ * `compare_one_x_two_backtests` and `compare_portfolio_backtests` extend the `compare_backtests`
+   contract (fresh factory state, input order, no ranking, `RuntimeError` naming the
+   configuration) to `MultiOutcomeBacktest` (recorded settlement by default) and
+   `WeeklyPortfolioBacktest` (seedable). Rows carry opening/closing funds, `pnl`, `roi` and the
+   engine's `bet_history`, with no `summary` for those ledger schemas.
  * `compare_backtests(data, configurations, *, period_to_start_betting=3,
    price_bets_at_true_odds=True)` runs `Backtest.run_explicit` once per binary staking
    configuration over one schedule. `configurations` maps labels to zero-argument factories
