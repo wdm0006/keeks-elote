@@ -233,6 +233,27 @@ before reading a row: candidates that could not be priced or settled are in the
 ledger but moved no money. The shared <code class="docutils literal notranslate"><span class="pre">period_to_start_betting</span></code> and
 <code class="docutils literal notranslate"><span class="pre">price_bets_at_true_odds</span></code> apply to every row.</p>
 </section>
+<section id="x2-and-weekly-portfolio-runs">
+<h2>1X2 and weekly portfolio runs<a class="headerlink" href="#x2-and-weekly-portfolio-runs" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">compare_one_x_two_backtests(data,</span> <span class="pre">configurations,</span> <span class="pre">*,</span> <span class="pre">draw_rate=0.25,</span>
+<span class="pre">period_to_start_betting=3,</span> <span class="pre">seed=None,</span> <span class="pre">settlement=&quot;recorded&quot;)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">compare_portfolio_backtests(data,</span> <span class="pre">configurations,</span> <span class="pre">*,</span> <span class="pre">transaction_cost_rate=0.0,</span>
+<span class="pre">period_to_start_betting=0,</span> <span class="pre">seed=None)</span></code> follow the same contract: one fresh
+factory call per configuration, rows in input order, no ranking, and a
+<code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> naming the configuration on failure. The 1X2 factory returns
+<code class="docutils literal notranslate"><span class="pre">(arena,</span> <span class="pre">multi_outcome_strategy,</span> <span class="pre">bankroll)</span></code> and settles against recorded scores by
+default; the portfolio factory returns <code class="docutils literal notranslate"><span class="pre">(arena,</span> <span class="pre">allocator_factory,</span> <span class="pre">bankroll)</span></code>.
+Rows carry <code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">opening_funds</span></code>, <code class="docutils literal notranslate"><span class="pre">closing_funds</span></code>, <code class="docutils literal notranslate"><span class="pre">pnl</span></code>, <code class="docutils literal notranslate"><span class="pre">roi</span></code> and the
+engine’s own <code class="docutils literal notranslate"><span class="pre">bet_history</span></code>. They have no <code class="docutils literal notranslate"><span class="pre">summary</span></code>, because
+<code class="docutils literal notranslate"><span class="pre">summarize_bet_history</span></code> rejects those ledger schemas.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">rows</span> <span class="o">=</span> <span class="n">compare_portfolio_backtests</span><span class="p">(</span>
+    <span class="n">data</span><span class="p">,</span>
+    <span class="p">{</span><span class="s2">"mean-variance"</span><span class="p">:</span> <span class="k">lambda</span><span class="p">:</span> <span class="p">(</span><span class="n">create_arena</span><span class="p">(</span><span class="s2">"elo"</span><span class="p">),</span> <span class="n">my_allocator_factory</span><span class="p">,</span> <span class="n">BankRoll</span><span class="p">(</span><span class="mf">1000.0</span><span class="p">))},</span>
+    <span class="n">seed</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 
