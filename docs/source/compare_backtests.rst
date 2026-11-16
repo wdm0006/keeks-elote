@@ -60,3 +60,26 @@ statistical significance. Check ``summary["failed_bets"]`` and ``failure_reasons
 before reading a row: candidates that could not be priced or settled are in the
 ledger but moved no money. The shared ``period_to_start_betting`` and
 ``price_bets_at_true_odds`` apply to every row.
+
+1X2 and weekly portfolio runs
+-----------------------------
+
+``compare_one_x_two_backtests(data, configurations, *, draw_rate=0.25,
+period_to_start_betting=3, seed=None, settlement="recorded")`` and
+``compare_portfolio_backtests(data, configurations, *, transaction_cost_rate=0.0,
+period_to_start_betting=0, seed=None)`` follow the same contract: one fresh
+factory call per configuration, rows in input order, no ranking, and a
+``RuntimeError`` naming the configuration on failure. The 1X2 factory returns
+``(arena, multi_outcome_strategy, bankroll)`` and settles against recorded scores by
+default; the portfolio factory returns ``(arena, allocator_factory, bankroll)``.
+Rows carry ``name``, ``opening_funds``, ``closing_funds``, ``pnl``, ``roi`` and the
+engine's own ``bet_history``. They have no ``summary``, because
+``summarize_bet_history`` rejects those ledger schemas.
+
+.. code-block:: python
+
+   rows = compare_portfolio_backtests(
+       data,
+       {"mean-variance": lambda: (create_arena("elo"), my_allocator_factory, BankRoll(1000.0))},
+       seed=7,
+   )
